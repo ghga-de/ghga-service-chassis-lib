@@ -3,8 +3,7 @@ name: Static Code Analysis
 on: push
 
 env:
-  # Please adapt to package name
-  MAIN_SRC_DIR: ./my_microservice
+  MAIN_SRC_DIR: ./ghga_service_chassis_lib
 
 jobs:
   static-code-analysis:
