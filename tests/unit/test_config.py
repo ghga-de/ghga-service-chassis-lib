@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+"""Test config parsing module"""
+
 from ghga_service_chassis_lib.config import yaml_as_config_source
 from .fixtures.config import BasicConfig, config_yamls, basic_env_var_fixture
 

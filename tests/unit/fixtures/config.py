@@ -22,8 +22,8 @@ from typing import Dict, Any
 from dataclasses import dataclass
 import yaml
 from pydantic import BaseSettings, BaseModel
-from . import BASE_DIR
 from ghga_service_chassis_lib.config import DEFAULT_CONFIG_PREFIX
+from . import BASE_DIR
 
 
 # read all config yamls:
@@ -52,6 +52,7 @@ config_yamls = {
     for cfile in os.listdir(CONFIG_YAML_DIR)
     if re.match(CONFIG_YAML_PATTERN, cfile)
 }
+
 
 # env variable sets:
 @dataclass
