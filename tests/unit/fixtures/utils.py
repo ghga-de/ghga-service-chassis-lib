@@ -13,8 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures for unit tests"""
+"""Uitls for Fixture handling"""
 
-import os
+import yaml
 
-BASE_DIR = os.path.dirname(__file__)
+
+def read_yaml(path: str) -> dict:
+    """Read yaml file and return content as dict."""
+    with open(path, "r") as file_:
+        return yaml.safe_load(file_)

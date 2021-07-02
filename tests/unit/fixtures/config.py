@@ -20,10 +20,10 @@ import re
 import copy
 from typing import Dict, Any
 from dataclasses import dataclass
-import yaml
 from pydantic import BaseSettings, BaseModel
 from ghga_service_chassis_lib.config import DEFAULT_CONFIG_PREFIX
 from . import BASE_DIR
+from . import utils
 
 
 # read all config yamls:
@@ -39,10 +39,9 @@ class ConfigYamlFixture(BaseModel):
 
 
 def read_config_yaml(name: str):
-    """Read from yaml file and return content dict."""
+    """Read config yaml."""
     path = os.path.join(CONFIG_YAML_DIR, name)
-    with open(path, "r") as cfile:
-        content = yaml.safe_load(cfile)
+    content = utils.read_yaml(path)
 
     return ConfigYamlFixture(path=path, content=content)
 
@@ -54,7 +53,7 @@ config_yamls = {
 }
 
 
-# env variable sets:
+# read env variable sets:
 @dataclass
 class EnvVarFixture:
     """Container for env var set. This class can be used
@@ -79,13 +78,17 @@ class EnvVarFixture:
         os.environ = self.env_backup
 
 
-basic_env_var_fixture = EnvVarFixture(
-    env_vars={
-        "some_number": "3",
-        "some_boolean": "false",
-        "some_string_with_default": "overwitten_by_env",
+def read_env_var_sets() -> Dict[str, EnvVarFixture]:
+    """Read env vars sets and return a list of EnvVarFixtures."""
+    env_var_dict = utils.read_yaml(os.path.join(BASE_DIR, "config_env_var_sets.yaml"))
+
+    return {
+        set_name: EnvVarFixture(env_vars=env_vars)
+        for set_name, env_vars in env_var_dict.items()
     }
-)
+
+
+env_var_sets = read_env_var_sets()
 
 
 # pydantic BaseSettings classes:
