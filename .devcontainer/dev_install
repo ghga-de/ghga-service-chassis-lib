@@ -9,4 +9,7 @@ cd /workspace
 pip install \
     --use-feature=in-tree-build \
     -e \
-    ".[testing]" 
+    ".[all]"
+
+# install pre-commit hooks to git:
+pre-commit install

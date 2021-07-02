@@ -1,0 +1,40 @@
+name: Static Code Analysis
+
+on: push
+
+env:
+  # Please adapt to package name
+  MAIN_SRC_DIR: ./my_microservice
+
+jobs:
+  static-code-analysis:
+    runs-on: ubuntu-latest
+    name: Static Code Analysis
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install Dependencies
+        run: |
+          pip install ".[dev]"
+      - uses: pre-commit/action@v2.0.3
+      - name: mypy
+        run: |
+          mypy --show-error-codes --disable-error-code import .
+      - name: pylint
+        run: |
+          pylint "${MAIN_SRC_DIR}"
+      - name: flake8
+        run: |
+          flake8 .
+      - name: black
+        run: |
+          black --check .
+      - name: bandit
+        run: |
+          bandit -r "${MAIN_SRC_DIR}"
+      - name: Check license header and file
+        run: |
+          python3 ./.devcontainer/license_checker.py

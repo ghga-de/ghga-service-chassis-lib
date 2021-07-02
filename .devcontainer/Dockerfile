@@ -6,7 +6,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/python:0-${VARIANT}
 
 # install dependencies:
 # (direct package dependencies are listed in the setup.py):
-RUN pip install black
+# RUN apt install -y ...
 
 # Copy install script to bin:
 COPY ./dev_install /bin
