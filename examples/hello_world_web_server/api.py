@@ -13,15 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Entrypoint of the package"""
-from .config import get_config
-from .api import app
+"""Definition of API endpoints"""
+
+from fastapi import Depends
+from ghga_service_chassis_lib.api import FastApiWrapper
+from examples.hello_world_web_server.config import get_config
+
+app = FastApiWrapper()
 
 
-def run():
-    """Run the service"""
-    app.run_server(config=get_config())
-
-
-if __name__ == "__main__":
-    run()
+@app.get("/")
+async def index(config=Depends(get_config)):
+    """Greet the World
+    (or whoever was configured in config.greeting)"""
+    return f"<html>Hello {config.greeting}"

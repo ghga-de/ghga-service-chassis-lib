@@ -17,15 +17,12 @@
 
 import os
 import pathlib
-from typing import Literal, Dict, Any, Optional, Callable, Type
+from typing import Dict, Any, Optional, Callable, Final
 from pydantic import BaseSettings
 import yaml
 
 # Default config prefix:
-DEFAULT_CONFIG_PREFIX = "ghga_services"
-
-# type alias for log level parameter
-LogLevel = Literal["critical", "error", "warning", "info", "debug", "trace"]
+DEFAULT_CONFIG_PREFIX: Final = "ghga_services"
 
 
 def yaml_settings_factory(
@@ -49,7 +46,12 @@ def yaml_settings_factory(
     return yaml_settings
 
 
-def yaml_as_config_source(settings: Type[BaseSettings]) -> Callable:
+def yaml_as_config_source(settings):
+    # settings should be a pydantic BaseSetting,
+    # there is no type hint here to not restrict
+    # autocompletion for attributes of the
+    # modified settings class returned by the
+    # contructor_wrapper
     """A decorator function that extends a pydantic BaseSettings class
     to read in parameters from a config yaml.
     It replaces (or adds) a Config subclass to the BaseSettings class that configures
@@ -62,14 +64,16 @@ def yaml_as_config_source(settings: Type[BaseSettings]) -> Callable:
 
 
     Args:
-        Settings (BaseSettings): [description]
+        settings (BaseSettings): A pydantic BaseSettings class to be modified
     """
+
+    # check if settings inherits from pydantic BaseSettings:
 
     def constructor_wrapper(
         config_yaml: Optional[str] = None,
         config_prefix: str = DEFAULT_CONFIG_PREFIX,
         **kwargs,
-    ) -> Callable:
+    ):
         """A wrapper for constructing a pydantic BaseSetting with modified sources
 
         Args:

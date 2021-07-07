@@ -59,6 +59,7 @@ EXCLUDE = [
     ".vscode",
     ".mypy_cache",
     "db_migration",
+    ".pytest_cache",
 ]
 
 # exclude file by file ending from license header check:

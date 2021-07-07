@@ -13,15 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Entrypoint of the package"""
-from .config import get_config
-from .api import app
+"""Config Parameter Modelling and Parsing"""
+
+from functools import lru_cache
+from ghga_service_chassis_lib.config import yaml_as_config_source
+from ghga_service_chassis_lib.api import ApiConfigBase
 
 
-def run():
-    """Run the service"""
-    app.run_server(config=get_config())
+@yaml_as_config_source
+class Config(ApiConfigBase):
+    """Config parameters and their defaults."""
+
+    # config parameter needed for the api server
+    # are inherited from ApiConfigBase
+
+    greeting: str = "World"
 
 
-if __name__ == "__main__":
-    run()
+config = Config()
+
+
+@lru_cache
+def get_config():
+    """Get config parameter."""
+    return Config()
