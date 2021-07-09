@@ -15,10 +15,10 @@
 
 """Test config parsing module"""
 import shutil
-import copy
 import pathlib
 import os
-from ghga_service_chassis_lib.config import yaml_as_config_source
+import pytest
+from ghga_service_chassis_lib.config import config_from_yaml
 from .fixtures.config import BasicConfig, config_yamls, env_var_sets
 
 
@@ -29,7 +29,7 @@ def test_config_from_yaml():
     config_yaml = config_yamls["basic"]
 
     # update config class with content of config yaml
-    config_constructor = yaml_as_config_source(BasicConfig)
+    config_constructor = config_from_yaml()(BasicConfig)
     config = config_constructor(config_yaml=config_yaml.path)
 
     # compare to expected content:
@@ -44,7 +44,7 @@ def test_config_from_env():
     with env_var_fixture:
         # update config class with content of config yaml and
         # from the env vars
-        config_constructor = yaml_as_config_source(BasicConfig)
+        config_constructor = config_from_yaml()(BasicConfig)
         config = config_constructor()
 
     # compare to expected content:
@@ -62,7 +62,7 @@ def test_config_from_yaml_and_env():
     with env_var_fixture:
         # update config class with content of config yaml and
         # from the env vars
-        config_constructor = yaml_as_config_source(BasicConfig)
+        config_constructor = config_from_yaml()(BasicConfig)
         config = config_constructor(config_yaml=config_yaml.path)
 
     # compare to expected content:
@@ -71,32 +71,39 @@ def test_config_from_yaml_and_env():
     assert config.dict() == expected
 
 
-def test_config_from_default_yaml_and_env():
-    """Test that default config yaml correctly overwrites
-    default parameters"""
+@pytest.mark.parametrize("cwd", [True, False])
+def test_config_from_default_yaml(cwd: bool):
+    """Test that default config yaml from home is correctly read"""
 
-    config_prefix = "test_prefix"
-    env_var_fixture = env_var_sets["basic_complete"]
+    base_dir = os.getcwd() if cwd else pathlib.Path.home()
+    prefix = "test_prefix"
 
     # copy basic config to default config location:
     config_yaml = config_yamls["basic"]
-    default_yaml_path = os.path.join(pathlib.Path.home(), f".{config_prefix}.yaml")
+    default_yaml_path = os.path.join(str(base_dir), f".{prefix}.yaml")
     shutil.copy(config_yaml.path, default_yaml_path)
 
-    # update env var fixture to new prefix location
-    modified_env_var_fixture = copy.deepcopy(env_var_fixture)
-    modified_env_var_fixture.config_prefix = config_prefix
-
-    with modified_env_var_fixture:
-        # update config class with content of config yaml and
-        # from the env vars
-        config_constructor = yaml_as_config_source(BasicConfig)
-        config = config_constructor(config_prefix=config_prefix)
+    # update config class with content of config yaml
+    config_constructor = config_from_yaml(prefix=prefix)(BasicConfig)
+    config = config_constructor()
 
     # cleanup default config yaml:
     os.remove(default_yaml_path)
 
     # compare to expected content:
-    overwrite_params = {**config_yaml.content, **modified_env_var_fixture.env_vars}
-    expected = BasicConfig(**overwrite_params)
+    expected = BasicConfig(**config_yaml.content)
     assert config.dict() == expected
+
+
+def test_error_on_invalid_base_class():
+    """Check that an exception is thrown if the class passed to the
+    config decorator does not inherit from pydantic.BaseSettings
+    """
+
+    class WrongClass:
+        """Not inheriting from pydantic.BaseSettings"""
+
+        pass  # pylint: disable=unnecessary-pass
+
+    with pytest.raises(TypeError):
+        config_from_yaml()(WrongClass)()

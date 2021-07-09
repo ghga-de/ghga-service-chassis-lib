@@ -14,13 +14,14 @@
 # limitations under the License.
 
 """Entrypoint of the package"""
+from ghga_service_chassis_lib.api import run_server
 from .config import get_config
-from .api import app
+from .api import app  # noqa: F401 pylint: disable=unused-import
 
 
 def run():
     """Run the service"""
-    app.run_server(config=get_config())
+    run_server(app="hello_world_web_server.__main__:app", config=get_config())
 
 
 if __name__ == "__main__":

@@ -60,13 +60,14 @@ EXCLUDE = [
     ".mypy_cache",
     "db_migration",
     ".pytest_cache",
+    ".coverage",
 ]
 
 # exclude file by file ending from license header check:
-EXCLUDE_ENDINGS = ["json", "pyc", "yaml", "yml"]
+EXCLUDE_ENDINGS = ["json", "pyc", "yaml", "yml", "md"]
 
 # exclude any files with names that match any of the following regex:
-EXCLUDE_PATTERN = [r".*\.egg-info.*", r".*__cache__.*"]
+EXCLUDE_PATTERN = [r".*\.egg-info.*", r".*__cache__.*", r".*,cover"]
 
 # The License header, "{year}" will be replaced by current year:
 LICENSE_HEADER = """Copyright {year} {author}

@@ -15,15 +15,14 @@
 
 """Definition of API endpoints"""
 
-from fastapi import Depends
-from ghga_service_chassis_lib.api import FastApiWrapper
+from fastapi import Depends, FastAPI
 from examples.hello_world_web_server.config import get_config
 
-app = FastApiWrapper()
+app = FastAPI()
 
 
 @app.get("/")
 async def index(config=Depends(get_config)):
     """Greet the World
     (or whoever was configured in config.greeting)"""
-    return f"<html>Hello {config.greeting}"
+    return f"Hello {config.greeting}."

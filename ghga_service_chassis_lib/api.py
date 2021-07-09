@@ -16,7 +16,7 @@
 """Functionality for initializing, configuring, and running RESTful
 webapps with FastAPI"""
 
-from typing import Literal, Type
+from typing import Literal, Type, Union
 from pydantic import BaseSettings
 import uvicorn
 from fastapi import FastAPI
@@ -34,20 +34,30 @@ class ApiConfigBase(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8080
     log_level: LogLevel = "info"
+    auto_reload: bool = False
+    workers: int = 1
 
 
-class FastApiWrapper(FastAPI):
-    """Wrapper around FastAPI app that adds functionality to
-    run server"""
+def run_server(app: Union[str, Type[FastAPI]], config: Type[ApiConfigBase]):
+    """Starts backend server.
 
-    def run_server(self, config: Type[ApiConfigBase]):
-        """Starts backend server.
-
-        Args:
-            config (BaseSettings):
-                A pydantic BaseSettings class that contains attributes
-                "host", "port", and "log_level".
-        """
-        uvicorn.run(
-            self, host=config.host, port=config.port, log_level=config.log_level
-        )
+    Args:
+        app_import_path (str, Type[FastAPI]):
+            Either a FastAPI app object (auto reload and multiple
+            workers won't work) or the import path to the app object.
+            The path follows the same style that is also used for
+            the console_scripts in a setup.py/setup.cfg
+            (see here for an example:
+            from ghga_service_chassis_lib.api import run_server).
+        config (BaseSettings):
+            A pydantic BaseSettings class that contains attributes
+            "host", "port", and "log_level".
+    """
+    uvicorn.run(
+        app,
+        host=config.host,
+        port=config.port,
+        log_level=config.log_level,
+        reload=config.auto_reload,
+        workers=config.workers,
+    )

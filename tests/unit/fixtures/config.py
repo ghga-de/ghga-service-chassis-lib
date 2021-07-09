@@ -62,7 +62,7 @@ class EnvVarFixture:
     the original enviroment is restored."""
 
     env_vars: Dict[str, str]
-    config_prefix: str = DEFAULT_CONFIG_PREFIX
+    prefix: str = DEFAULT_CONFIG_PREFIX
 
     def __enter__(self):
         """makes a backup of the environment and set the
@@ -71,7 +71,7 @@ class EnvVarFixture:
         self.env_backup = copy.deepcopy(os.environ)
 
         for name, value in self.env_vars.items():
-            os.environ[f"{self.config_prefix}_{name}"] = value
+            os.environ[f"{self.prefix}_{name}"] = value
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """restores the original environment"""

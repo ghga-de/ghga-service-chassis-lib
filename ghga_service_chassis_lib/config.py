@@ -25,12 +25,40 @@ import yaml
 DEFAULT_CONFIG_PREFIX: Final = "ghga_services"
 
 
+def get_default_config_yaml(prefix: str) -> Optional[str]:
+    """Get the path to the default config function.
+
+    Args:
+        prefix (str):
+            Name prefix used to derive the default paths.
+    """
+    # construct file name from prefix:
+    file_name = f".{prefix}.yaml"
+
+    # look in the current directory:
+    default_pwd_path = os.path.join(os.getcwd(), file_name)
+    if os.path.isfile(default_pwd_path):
+        return default_pwd_path
+
+    # look in the home directory:
+    default_home_path = os.path.join(pathlib.Path.home(), file_name)
+    if os.path.isfile(default_home_path):
+        return default_home_path
+
+    # if nothing was found return None:
+    return None
+
+
 def yaml_settings_factory(
     config_yaml: Optional[str] = None,
 ) -> Callable[[BaseSettings], Dict[str, Any]]:
     """
     A factory of source methods for pydantic's BaseSettings Config that load
     settings from a yaml file.
+
+    Args:
+        config_yaml (str, Optional):
+            Path to the yaml file to read from.
     """
 
     def yaml_settings(  # pylint: disable=unused-argument
@@ -46,14 +74,11 @@ def yaml_settings_factory(
     return yaml_settings
 
 
-def yaml_as_config_source(settings):
-    # settings should be a pydantic BaseSetting,
-    # there is no type hint here to not restrict
-    # autocompletion for attributes of the
-    # modified settings class returned by the
-    # contructor_wrapper
-    """A decorator function that extends a pydantic BaseSettings class
-    to read in parameters from a config yaml.
+def config_from_yaml(
+    prefix: str = DEFAULT_CONFIG_PREFIX,
+) -> Callable:
+    """A factory that returns decorator functions which extends a
+    pydantic BaseSettings class to read in parameters from a config yaml.
     It replaces (or adds) a Config subclass to the BaseSettings class that configures
     the priorities for parameter sources as follows (highest Priority first):
         - parameters passed using **kwargs
@@ -62,66 +87,79 @@ def yaml_as_config_source(settings):
         - yaml config file
         - defaults
 
-
     Args:
-        settings (BaseSettings): A pydantic BaseSettings class to be modified
+        settings (BaseSettings):
+            A pydantic BaseSettings class to be modified
+        prefix: (str, optional):
+            When defining parameters via enviroment variables, all variables
+            have to be prefixed with this string following this pattern
+            "{prefix}_{actual_variable_name}". Moreover, this prefix is used
+            to derive the default location for the config yaml file
+            ("~/.{prefix}.yaml"). Defaults to "ghga_services".
     """
 
-    # check if settings inherits from pydantic BaseSettings:
+    def decorator(settings) -> Callable:
+        # settings should be a pydantic BaseSetting,
+        # there is no type hint here to not restrict
+        # autocompletion for attributes of the
+        # modified settings class returned by the
+        # contructor_wrapper
+        """The actual decorator function.
 
-    def constructor_wrapper(
-        config_yaml: Optional[str] = None,
-        config_prefix: str = DEFAULT_CONFIG_PREFIX,
-        **kwargs,
-    ):
-        """A wrapper for constructing a pydantic BaseSetting with modified sources
-
-        Args:
-            config_yaml (str, optional):
-                Path to a config yaml. Defaults to "~/.{config_prefix}.yaml"
-                (see below).
-            config_prefix: (str, optional):
-                When defining parameters via enviroment variables, all variables
-                have to be prefixed with this string following this pattern
-                "{config_prefix}_{actual_variable_name}". Moreover, this prefix is used
-                to derive the default location for the config yaml file
-                ("~/.{config_prefix}.yaml"). Defaults to "ghga_services".
+        Args
+            settings (BaseSettings):
+                A pydantic BaseSettings class to be modified.
         """
 
-        # if config yaml not given try to find it at the default location:
-        if config_yaml is None:
-            default_config_yaml = os.path.join(
-                pathlib.Path.home(), f".{config_prefix}.yaml"
+        # check if settings inherits from pydantic BaseSettings:
+        if not issubclass(settings, BaseSettings):
+            raise TypeError(
+                "The specified settings class is not a subclass of pydantic.BaseSettings"
             )
-            if os.path.isfile(default_config_yaml):
-                config_yaml = default_config_yaml
 
-        class ModSettings(settings):  # type: ignore
-            """Modifies the orginal Settings class provided by the user"""
+        def constructor_wrapper(
+            config_yaml: Optional[str] = None,
+            **kwargs,
+        ):
+            """A wrapper for constructing a pydantic BaseSetting with modified sources
 
-            class Config:
-                """pydantic Config subclass"""
+            Args:
+                config_yaml (str, optional):
+                    Path to a config yaml. Overwrites the default location.
+            """
 
-                # add this prefix to all variable names to
-                # define them as environment variables:
-                env_prefix = f"{config_prefix}_"
+            # get default path if config_yaml not specified:
+            if config_yaml is None:
+                config_yaml = get_default_config_yaml(prefix)
 
-                @classmethod
-                def customise_sources(
-                    cls,
-                    init_settings,
-                    env_settings,
-                    file_secret_settings,
-                ):
-                    """add custom yaml source"""
-                    return (
+            class ModSettings(settings):  # type: ignore
+                """Modifies the orginal Settings class provided by the user"""
+
+                class Config:
+                    """pydantic Config subclass"""
+
+                    # add this prefix to all variable names to
+                    # define them as environment variables:
+                    env_prefix = f"{prefix}_"
+
+                    @classmethod
+                    def customise_sources(
+                        cls,
                         init_settings,
                         env_settings,
                         file_secret_settings,
-                        yaml_settings_factory(config_yaml),
-                    )
+                    ):
+                        """add custom yaml source"""
+                        return (
+                            init_settings,
+                            env_settings,
+                            file_secret_settings,
+                            yaml_settings_factory(config_yaml),
+                        )
 
-        # construct settings class:
-        return ModSettings(**kwargs)
+            # construct settings class:
+            return ModSettings(**kwargs)
 
-    return constructor_wrapper
+        return constructor_wrapper
+
+    return decorator
