@@ -1,0 +1,6 @@
+[flake8]
+ignore =
+    E501, # = too long line, this is checked by black
+    W503 # = line break before binary operator, conflicts with black
+exclude = .git,__pycache__,db_migration,build,dist
+max-complexity = 10
