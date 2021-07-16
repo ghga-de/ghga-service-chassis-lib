@@ -27,7 +27,7 @@ def find_free_port():
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return sock.getsockname()[1]
 
-
+      
 def read_yaml(path: str) -> dict:
     """Read yaml file and return content as dict."""
     with open(path, "r") as file_:

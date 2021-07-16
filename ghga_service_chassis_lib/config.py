@@ -88,8 +88,6 @@ def config_from_yaml(
         - defaults
 
     Args:
-        settings (BaseSettings):
-            A pydantic BaseSettings class to be modified
         prefix: (str, optional):
             When defining parameters via enviroment variables, all variables
             have to be prefixed with this string following this pattern
