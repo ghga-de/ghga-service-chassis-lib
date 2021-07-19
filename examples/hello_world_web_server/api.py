@@ -13,22 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Uitls for Fixture handling"""
+"""Definition of API endpoints"""
 
-import socket
-from contextlib import closing
-import yaml
+from fastapi import Depends, FastAPI
+from examples.hello_world_web_server.config import get_config
 
-
-def find_free_port():
-    """Find a free port."""
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        sock.bind(("", 0))
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return sock.getsockname()[1]
+app = FastAPI()
 
 
-def read_yaml(path: str) -> dict:
-    """Read yaml file and return content as dict."""
-    with open(path, "r") as file_:
-        return yaml.safe_load(file_)
+@app.get("/")
+async def index(config=Depends(get_config)):
+    """Greet the World
+    (or whoever was configured in config.greeting)"""
+    return f"Hello {config.greeting}."

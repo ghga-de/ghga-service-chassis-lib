@@ -13,22 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Uitls for Fixture handling"""
+"""Config Parameter Modelling and Parsing"""
 
-import socket
-from contextlib import closing
-import yaml
-
-
-def find_free_port():
-    """Find a free port."""
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        sock.bind(("", 0))
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return sock.getsockname()[1]
+from functools import lru_cache
+from ghga_service_chassis_lib.config import config_from_yaml
+from ghga_service_chassis_lib.api import ApiConfigBase
 
 
-def read_yaml(path: str) -> dict:
-    """Read yaml file and return content as dict."""
-    with open(path, "r") as file_:
-        return yaml.safe_load(file_)
+@config_from_yaml(prefix="hello_world")
+class Config(ApiConfigBase):
+    """Config parameters and their defaults."""
+
+    # config parameter needed for the api server
+    # are inherited from ApiConfigBase
+
+    greeting: str = "World"
+
+
+@lru_cache
+def get_config():
+    """Get config parameter."""
+    return Config()

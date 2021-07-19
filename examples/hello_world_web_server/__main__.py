@@ -15,17 +15,15 @@
 
 """Entrypoint of the package"""
 
-from pydantic import BaseSettings
-from ghga_service_chassis_lib.config import yaml_as_config_source
+from ghga_service_chassis_lib.api import run_server
+from .config import get_config
+from .api import app  # noqa: F401 pylint: disable=unused-import
 
 
-@yaml_as_config_source
-class Config(BaseSettings):
-    """Config parameters and their defaults."""
-
-    test: str = "bla"
+def run():
+    """Run the service"""
+    run_server(app="hello_world_web_server.__main__:app", config=get_config())
 
 
-config = Config(config_yaml="/workspaces/ghga-service-chassis-lib/example_config.yaml")
-
-print(config.test)
+if __name__ == "__main__":
+    run()
