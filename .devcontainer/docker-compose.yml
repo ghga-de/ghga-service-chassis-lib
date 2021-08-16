@@ -1,0 +1,30 @@
+version: "3"
+
+services:
+  ghga_service_chassis_lib:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+
+      args:
+        # [Choice] Python version: 3, 3.8, 3.7, 3.6
+        VARIANT: 3.9
+
+    volumes:
+      - ..:/workspace:cached
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+    # Uncomment the next line to use a non-root user for all processes.
+    user: vscode
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: 'rabbitmq'
+    hostname: 'rabbitmq'
+
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
+    ports:
+      - 5672:5672
+      - 15672:15672
