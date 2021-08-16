@@ -23,14 +23,14 @@ from time import sleep
 import multiprocessing
 import pytest
 import pika
-from func_timeout import func_set_timeout
 from ghga_service_chassis_lib.pubsub import AmqpTopic
+from .fixtures.utils import set_timeout
 from .fixtures.amqp import (
     MessageSuccessfullyReceived,
 )
 
 
-@func_set_timeout(2)  # timeout after 2s
+@set_timeout(1)  # timeout after 1s
 def test_pub_sub():
     """Test basic publish subscribe senario"""
 
