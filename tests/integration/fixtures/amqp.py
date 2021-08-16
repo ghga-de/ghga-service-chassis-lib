@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Uitls for Fixture handling"""
-
-import yaml
+"""RabbitMQ fixtures"""
 
 
-def read_yaml(path: str) -> dict:
-    """Read yaml file and return content as dict."""
-    with open(path, "r") as file_:
-        return yaml.safe_load(file_)
+class MessageSuccessfullyReceived(Exception):
+    """This Exception can be used to signal that the message
+    was successfully received.
+    """
+
+    ...
