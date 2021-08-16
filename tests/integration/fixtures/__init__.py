@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A library that contains the basic chassis functionality used in services of GHGA"""
+"""Fixtures for unit testing"""
 
-__version__ = "0.2.0"
+import os
+
+BASE_DIR = os.path.dirname(__file__)

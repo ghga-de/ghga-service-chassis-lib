@@ -13,6 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A library that contains the basic chassis functionality used in services of GHGA"""
+"""RabbitMQ fixtures"""
 
-__version__ = "0.2.0"
+import os
+import pika
+
+
+RABBITMQ_TEST_HOST = (
+    os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"
+)
+CONNECTION_PARAMS = pika.ConnectionParameters(host=RABBITMQ_TEST_HOST)
+
+
+class MessageSuccessfullyReceived(Exception):
+    """This Exception can be used to signal that the message
+    was successfully received.
+    """
+
+    ...
