@@ -43,9 +43,10 @@ class ApiConfigBase(BaseSettings):
     cors_allowed_headers: List[str] = ["*"]
 
 
-def configure_cors(app: FastAPI, config: Type[ApiConfigBase]):
-    """Configure the CORS for the specified app"""
+def configure_app(app: FastAPI, config: Type[ApiConfigBase]):
+    """Configure a FastAPI app based on a config object."""
 
+    # configure CORS:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.cors_allowed_origins,
