@@ -15,9 +15,12 @@
 """
 Test the pubsub module.
 These tests require a RabbitMQ Broker to be running
-at host "rabbitmq" and port "5672"
+at host "localhost" and port "5672".
+You may also adapt the RabbitMQ host by defining the
+`RABBITMQ_TEST_HOST` environment variable.
 """
 
+import os
 from datetime import datetime
 from time import sleep
 import multiprocessing
@@ -28,6 +31,11 @@ from .fixtures.utils import set_timeout
 from .fixtures.amqp import (
     MessageSuccessfullyReceived,
 )
+
+RABBITMQ_TEST_HOST = (
+    os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"
+)
+CONNECTION_PARAMS = pika.ConnectionParameters(host=RABBITMQ_TEST_HOST)
 
 
 @set_timeout(1)  # timeout after 1s
@@ -46,7 +54,7 @@ def test_pub_sub():
 
         # create a topic object:
         topic = AmqpTopic(
-            connection_params=pika.ConnectionParameters(host="rabbitmq"),
+            connection_params=CONNECTION_PARAMS,
             topic_name=topic_name,
             service_name="test_publisher",
             json_schema=None,
@@ -63,7 +71,7 @@ def test_pub_sub():
 
     # receive the message:
     topic2 = AmqpTopic(
-        connection_params=pika.ConnectionParameters(host="rabbitmq"),
+        connection_params=CONNECTION_PARAMS,
         topic_name=topic_name,
         service_name="test_subscriber",
         json_schema=None,
