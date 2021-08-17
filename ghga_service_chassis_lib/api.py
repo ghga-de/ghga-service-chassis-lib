@@ -16,10 +16,11 @@
 """Functionality for initializing, configuring, and running RESTful
 webapps with FastAPI"""
 
-from typing import Literal, Type, Union
+from typing import Literal, Type, Union, List
 from pydantic import BaseSettings
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 # type alias for log level parameter
@@ -36,9 +37,25 @@ class ApiConfigBase(BaseSettings):
     log_level: LogLevel = "info"
     auto_reload: bool = False
     workers: int = 1
+    cors_allowed_origins: List[str] = []
+    cors_allow_credentials: bool = True
+    cors_allowed_methods: List[str] = ["*"]
+    cors_allowed_headers: List[str] = ["*"]
 
 
-def run_server(app: Union[str, Type[FastAPI]], config: Type[ApiConfigBase]):
+def configure_cors(app: FastAPI, config: Type[ApiConfigBase]):
+    """Configure the CORS for the specified app"""
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.cors_allowed_origins,
+        allow_credentials=config.cors_allow_credentials,
+        allow_methods=config.cors_allowed_methods,
+        allow_headers=config.cors_allowed_headers,
+    )
+
+
+def run_server(app: Union[str, FastAPI], config: Type[ApiConfigBase]):
     """Starts backend server.
 
     Args:
@@ -53,6 +70,7 @@ def run_server(app: Union[str, Type[FastAPI]], config: Type[ApiConfigBase]):
             A pydantic BaseSettings class that contains attributes
             "host", "port", and "log_level".
     """
+
     uvicorn.run(
         app,
         host=config.host,
