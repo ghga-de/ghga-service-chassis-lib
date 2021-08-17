@@ -15,6 +15,15 @@
 
 """RabbitMQ fixtures"""
 
+import os
+import pika
+
+
+RABBITMQ_TEST_HOST = (
+    os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"
+)
+CONNECTION_PARAMS = pika.ConnectionParameters(host=RABBITMQ_TEST_HOST)
+
 
 class MessageSuccessfullyReceived(Exception):
     """This Exception can be used to signal that the message

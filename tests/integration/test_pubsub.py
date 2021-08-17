@@ -20,22 +20,16 @@ You may also adapt the RabbitMQ host by defining the
 `RABBITMQ_TEST_HOST` environment variable.
 """
 
-import os
+import multiprocessing
 from datetime import datetime
 from time import sleep
-import multiprocessing
 import pytest
-import pika
 from ghga_service_chassis_lib.pubsub import AmqpTopic
 from .fixtures.utils import set_timeout
 from .fixtures.amqp import (
+    CONNECTION_PARAMS,
     MessageSuccessfullyReceived,
 )
-
-RABBITMQ_TEST_HOST = (
-    os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"
-)
-CONNECTION_PARAMS = pika.ConnectionParameters(host=RABBITMQ_TEST_HOST)
 
 
 @set_timeout(1)  # timeout after 1s
