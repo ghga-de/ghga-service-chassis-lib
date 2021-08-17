@@ -5,6 +5,9 @@ services which use the pub/sub functionality of the
 ghga_service_chassis_lib.
 
 ## Usage:
+Please note, to run these examples, a RabbitMQ Broker must be running
+at host "rabbitmq" and port "5672" (as configured in the devcontainer).
+
 First start the subscribing service:
 ```bash
 python3 ./subscriber.py
