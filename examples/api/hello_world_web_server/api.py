@@ -16,7 +16,7 @@
 """Definition of API endpoints"""
 
 from fastapi import Depends, FastAPI
-from examples.hello_world_web_server.config import get_config
+from .config import get_config
 
 app = FastAPI()
 

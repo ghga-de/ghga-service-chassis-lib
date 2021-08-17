@@ -13,12 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Uitls for Fixture handling"""
+"""RabbitMQ fixtures"""
 
-import yaml
+import os
+import pika
 
 
-def read_yaml(path: str) -> dict:
-    """Read yaml file and return content as dict."""
-    with open(path, "r") as file_:
-        return yaml.safe_load(file_)
+RABBITMQ_TEST_HOST = (
+    os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"
+)
+CONNECTION_PARAMS = pika.ConnectionParameters(host=RABBITMQ_TEST_HOST)
+
+
+class MessageSuccessfullyReceived(Exception):
+    """This Exception can be used to signal that the message
+    was successfully received.
+    """
+
+    ...
