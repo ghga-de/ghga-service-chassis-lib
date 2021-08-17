@@ -16,7 +16,7 @@
 """Functionality for initializing, configuring, and running RESTful
 webapps with FastAPI"""
 
-from typing import Literal, Type, Union, List
+from typing import Literal, Type, Union, Sequence, Optional, Dict
 from pydantic import BaseSettings
 import uvicorn
 from fastapi import FastAPI
@@ -37,23 +37,30 @@ class ApiConfigBase(BaseSettings):
     log_level: LogLevel = "info"
     auto_reload: bool = False
     workers: int = 1
-    cors_allowed_origins: List[str] = []
-    cors_allow_credentials: bool = True
-    cors_allowed_methods: List[str] = ["*"]
-    cors_allowed_headers: List[str] = ["*"]
+
+    # Starlettes defaults will only be overwritten if a
+    # non-None value is specified:
+    cors_allowed_origins: Optional[Sequence[str]] = None
+    cors_allow_credentials: Optional[bool] = None
+    cors_allowed_methods: Optional[Sequence[str]] = None
+    cors_allowed_headers: Optional[Sequence[str]] = None
 
 
 def configure_app(app: FastAPI, config: Type[ApiConfigBase]):
     """Configure a FastAPI app based on a config object."""
 
     # configure CORS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=config.cors_allowed_origins,
-        allow_credentials=config.cors_allow_credentials,
-        allow_methods=config.cors_allowed_methods,
-        allow_headers=config.cors_allowed_headers,
-    )
+    kwargs: Dict[str, Optional[Union[Sequence[str], bool]]] = {}
+    if config.cors_allowed_origins is not None:
+        kwargs["allow_origins"] = config.cors_allowed_origins
+    if config.cors_allowed_headers is not None:
+        kwargs["allow_headers"] = config.cors_allowed_headers
+    if config.cors_allowed_methods is not None:
+        kwargs["allow_methods"] = config.cors_allowed_methods
+    if config.cors_allow_credentials is not None:
+        kwargs["allow_credentials"] = config.cors_allow_credentials
+
+    app.add_middleware(CORSMiddleware, **kwargs)
 
 
 def run_server(app: Union[str, FastAPI], config: Type[ApiConfigBase]):

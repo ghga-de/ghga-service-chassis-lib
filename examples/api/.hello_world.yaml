@@ -3,3 +3,6 @@ port: 8080
 log_level: info
 greeting: World
 cors_allowed_origins: ["*"]
+cors_allow_credentials: true
+cors_allowed_methods: ["*"]
+cors_allowed_headers: ["*"]
