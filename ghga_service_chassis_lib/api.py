@@ -16,10 +16,11 @@
 """Functionality for initializing, configuring, and running RESTful
 webapps with FastAPI"""
 
-from typing import Literal, Type, Union
+from typing import Literal, Type, Union, Sequence, Optional, Dict
 from pydantic import BaseSettings
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 # type alias for log level parameter
@@ -37,8 +38,32 @@ class ApiConfigBase(BaseSettings):
     auto_reload: bool = False
     workers: int = 1
 
+    # Starlettes defaults will only be overwritten if a
+    # non-None value is specified:
+    cors_allowed_origins: Optional[Sequence[str]] = None
+    cors_allow_credentials: Optional[bool] = None
+    cors_allowed_methods: Optional[Sequence[str]] = None
+    cors_allowed_headers: Optional[Sequence[str]] = None
 
-def run_server(app: Union[str, Type[FastAPI]], config: Type[ApiConfigBase]):
+
+def configure_app(app: FastAPI, config: Type[ApiConfigBase]):
+    """Configure a FastAPI app based on a config object."""
+
+    # configure CORS:
+    kwargs: Dict[str, Optional[Union[Sequence[str], bool]]] = {}
+    if config.cors_allowed_origins is not None:
+        kwargs["allow_origins"] = config.cors_allowed_origins
+    if config.cors_allowed_headers is not None:
+        kwargs["allow_headers"] = config.cors_allowed_headers
+    if config.cors_allowed_methods is not None:
+        kwargs["allow_methods"] = config.cors_allowed_methods
+    if config.cors_allow_credentials is not None:
+        kwargs["allow_credentials"] = config.cors_allow_credentials
+
+    app.add_middleware(CORSMiddleware, **kwargs)
+
+
+def run_server(app: Union[str, FastAPI], config: Type[ApiConfigBase]):
     """Starts backend server.
 
     Args:
@@ -53,6 +78,7 @@ def run_server(app: Union[str, Type[FastAPI]], config: Type[ApiConfigBase]):
             A pydantic BaseSettings class that contains attributes
             "host", "port", and "log_level".
     """
+
     uvicorn.run(
         app,
         host=config.host,
