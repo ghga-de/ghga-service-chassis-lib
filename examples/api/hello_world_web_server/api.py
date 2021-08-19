@@ -16,9 +16,11 @@
 """Definition of API endpoints"""
 
 from fastapi import Depends, FastAPI
+from ghga_service_chassis_lib.api import configure_app
 from .config import get_config
 
 app = FastAPI()
+configure_app(app, config=get_config())
 
 
 @app.get("/")
