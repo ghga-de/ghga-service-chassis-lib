@@ -19,21 +19,6 @@ jobs:
         run: |
           pip install ".[dev]"
       - uses: pre-commit/action@v2.0.3
-      - name: mypy
-        run: |
-          mypy --show-error-codes --disable-error-code import .
-      - name: pylint
-        run: |
-          pylint "${MAIN_SRC_DIR}"
-      - name: pytest
-        run: |
-          pytest
-      - name: black
-        run: |
-          black --check .
-      - name: bandit
-        run: |
-          bandit -r "${MAIN_SRC_DIR}"
       - name: Check license header and file
         run: |
           python3 ./.devcontainer/license_checker.py
