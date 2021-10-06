@@ -13,17 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Test mongodb connection module
+"""
 import pytest
 
 from ghga_service_chassis_lib.mongo_connect import DBConnect
 
-db_url = "mongodb://db:27017"
-db_name = "test"
+DB_URL = "mongodb://db:27017"
+DB_NAME = "test"
 
 
 @pytest.mark.asyncio
 async def test_get_collection():
-    db_connect = DBConnect(db_url, db_name)
+
+    """
+    Test, if we can establish a connection and insert data to the database
+    """
+
+    db_connect = DBConnect(DB_URL, DB_NAME)
     collection = await db_connect.get_collection("test_collection")
     await collection.delete_many({})
     await collection.insert_one({"id": "key", "value": 0})  # type: ignore
