@@ -16,12 +16,12 @@
 """Functionality for initializing, configuring, and running RESTful
 webapps with FastAPI"""
 
-from typing import Literal, Type, Union, Sequence, Optional, Dict
-from pydantic import BaseSettings
+from typing import Dict, Literal, Optional, Sequence, Type, Union
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from pydantic import BaseSettings
 
 # type alias for log level parameter
 LogLevel = Literal["critical", "error", "warning", "info", "debug", "trace"]

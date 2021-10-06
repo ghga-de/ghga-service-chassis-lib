@@ -39,10 +39,6 @@ repos:
     rev: 21.6b0
     hooks:
       - id: black
-  - repo: https://github.com/PyCQA/flake8
-    rev: "3.9.2"
-    hooks:
-      - id: flake8
   - repo: https://github.com/PyCQA/bandit
     rev: "1.7.0"
     hooks:
@@ -58,4 +54,9 @@ repos:
     hooks:
       - id: pylint
         args: [--disable=E0401]
-        exclude: db_migration|.devcontainer
+        exclude: db_migration|tests|.devcontainer
+  - repo: https://github.com/pycqa/isort
+    rev: 5.9.3
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]

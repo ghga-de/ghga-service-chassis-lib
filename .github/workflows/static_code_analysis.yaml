@@ -17,7 +17,7 @@ jobs:
           python-version: 3.9
       - name: Install Dependencies
         run: |
-          pip install ".[all]"
+          pip install ".[dev]"
       - uses: pre-commit/action@v2.0.3
       - name: mypy
         run: |
@@ -25,9 +25,9 @@ jobs:
       - name: pylint
         run: |
           pylint "${MAIN_SRC_DIR}"
-      - name: flake8
+      - name: pytest
         run: |
-          flake8 .
+          pytest
       - name: black
         run: |
           black --check .

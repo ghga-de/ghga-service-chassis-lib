@@ -17,9 +17,12 @@
 
 import multiprocessing
 import time
+
 import requests
-from ghga_service_chassis_lib.api import run_server, ApiConfigBase
-from .fixtures.hello_world_test_app import app, GREETING
+
+from ghga_service_chassis_lib.api import ApiConfigBase, run_server
+
+from .fixtures.hello_world_test_app import GREETING, app
 from .fixtures.utils import find_free_port
 
 

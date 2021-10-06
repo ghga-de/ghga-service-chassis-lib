@@ -20,11 +20,11 @@
 exists and that they are up to date.
 """
 
-import os
-import sys
 import argparse
 import itertools
+import os
 import re
+import sys
 from datetime import date
 from typing import List, Tuple
 
@@ -47,13 +47,11 @@ EXCLUDE = [
     "pip-wheel-metadata",
     ".git",
     ".github",
-    ".flake8",
     ".gitignore",
     ".pylintrc",
     "example-config.yaml",
     "LICENSE",  # is checked but not for the license header
     ".pre-commit-config.yaml",
-    "README.md",
     "docs",
     "requirements.txt",
     ".vscode",
