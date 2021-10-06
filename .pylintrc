@@ -1,7 +1,4 @@
 [MASTER]
-#https://stackoverflow.com/questions/1899436/pylint-unable-to-import-error-how-to-set-pythonpath
-init-hook='import sys; sys.path.append("/ghga-service-chassis-lib")'
-
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code.
