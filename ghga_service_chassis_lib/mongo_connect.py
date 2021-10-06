@@ -26,9 +26,9 @@ class DBConnect:
     Class that handles connections to a MongoDB store.
     """
 
-    def __init__(self, config):
-        self.db_url = config.db_url
-        self.db_name = config.db_name
+    def __init__(self, db_url, db_name):
+        self.db_url = db_url
+        self.db_name = db_name
         self.client = AsyncIOMotorClient(self.db_url)
 
     async def get_db(self) -> AsyncIOMotorClient:

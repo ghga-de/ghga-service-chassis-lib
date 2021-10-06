@@ -13,6 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+
 from ghga_service_chassis_lib.mongo_connect import DBConnect
 
-# Here should be a test for the mongo_connect functionality
+db_url = "mongodb://db:27017"
+db_name = "test"
+
+
+@pytest.mark.asyncio
+async def test_get_collection():
+    db_connect = DBConnect(db_url, db_name)
+    collection = await db_connect.get_collection("test_collection")
+    await collection.delete_many({})
+    await collection.insert_one({"id": "key", "value": 0})  # type: ignore
+    key_value = await collection.count_documents({})  # type: ignore
+    assert key_value == 1
