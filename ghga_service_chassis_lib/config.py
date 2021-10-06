@@ -17,9 +17,10 @@
 
 import os
 import pathlib
-from typing import Dict, Any, Optional, Callable, Final
-from pydantic import BaseSettings
+from typing import Any, Callable, Dict, Final, Optional
+
 import yaml
+from pydantic import BaseSettings
 
 # Default config prefix:
 DEFAULT_CONFIG_PREFIX: Final = "ghga_services"

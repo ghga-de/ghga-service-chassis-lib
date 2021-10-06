@@ -17,11 +17,12 @@
 
 import json
 import logging
-from typing import Callable, Tuple, Type, Optional
 from dataclasses import dataclass
 from datetime import datetime
-import pika
+from typing import Callable, Optional, Tuple, Type
+
 import jsonschema
+import pika
 
 
 class MaxAttemptsReached(Exception):

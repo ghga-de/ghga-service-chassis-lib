@@ -20,7 +20,9 @@
 
 import json
 from pathlib import Path
+
 import pika
+
 from ghga_service_chassis_lib.pubsub import AmqpTopic
 
 HERE = Path(__file__).parent.resolve()

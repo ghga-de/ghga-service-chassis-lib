@@ -13,20 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Definition of API endpoints"""
+"""
+Test mongodb connection module
+"""
+import pytest
 
-from fastapi import Depends, FastAPI
+from ghga_service_chassis_lib.mongo_connect import DBConnect
 
-from ghga_service_chassis_lib.api import configure_app
-
-from .config import get_config
-
-app = FastAPI()
-configure_app(app, config=get_config())
+DB_URL = "mongodb://db:27017"
+DB_NAME = "test"
 
 
-@app.get("/")
-async def index(config=Depends(get_config)):
-    """Greet the World
-    (or whoever was configured in config.greeting)"""
-    return f"Hello {config.greeting}."
+@pytest.mark.asyncio
+async def test_get_collection():
+
+    """
+    Test, if we can establish a connection and insert data to the database
+    """
+
+    db_connect = DBConnect(DB_URL, DB_NAME)
+    collection = await db_connect.get_collection("test_collection")
+    await collection.delete_many({})
+    await collection.insert_one({"id": "key", "value": 0})  # type: ignore
+    key_value = await collection.count_documents({})  # type: ignore
+    assert key_value == 1

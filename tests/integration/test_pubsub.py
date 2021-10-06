@@ -23,13 +23,13 @@ You may also adapt the RabbitMQ host by defining the
 import multiprocessing
 from datetime import datetime
 from time import sleep
+
 import pytest
+
 from ghga_service_chassis_lib.pubsub import AmqpTopic
+
+from .fixtures.amqp import CONNECTION_PARAMS, MessageSuccessfullyReceived
 from .fixtures.utils import set_timeout
-from .fixtures.amqp import (
-    CONNECTION_PARAMS,
-    MessageSuccessfullyReceived,
-)
 
 
 @set_timeout(1)  # timeout after 1s

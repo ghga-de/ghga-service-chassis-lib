@@ -27,3 +27,17 @@ services:
     ports:
       - 5672:5672
       - 15672:15672
+
+  db:
+    image: mongo:4.4.6
+    restart: unless-stopped
+    volumes:
+      - mongodb-data:/data/db
+    environment:
+      - PUID=1000
+      - PGID=1000
+    ports:
+      - 27017:27017
+
+volumes:
+  mongodb-data:

@@ -15,16 +15,17 @@
 
 """Config fixtures"""
 
+import copy
 import os
 import re
-import copy
-from typing import Dict, Any
 from dataclasses import dataclass
-from pydantic import BaseSettings, BaseModel
-from ghga_service_chassis_lib.config import DEFAULT_CONFIG_PREFIX
-from . import BASE_DIR
-from . import utils
+from typing import Any, Dict
 
+from pydantic import BaseModel, BaseSettings
+
+from ghga_service_chassis_lib.config import DEFAULT_CONFIG_PREFIX
+
+from . import BASE_DIR, utils
 
 # read all config yamls:
 CONFIG_YAML_PATTERN = r"(.*)\.yaml"
