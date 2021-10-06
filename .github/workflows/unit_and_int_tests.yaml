@@ -23,4 +23,5 @@ jobs:
           pip install ".[all]"
       - name: Run pytest
         run: |
-          pytest .
+          pytest tests/unit/*
+          pytest tests/integration/*
