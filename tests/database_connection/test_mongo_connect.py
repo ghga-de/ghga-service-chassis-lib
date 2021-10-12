@@ -37,3 +37,14 @@ async def test_get_collection():
     await collection.insert_one({"id": "key", "value": 0})  # type: ignore
     key_value = await collection.count_documents({})  # type: ignore
     assert key_value == 1
+
+
+@pytest.mark.asyncio
+async def test_close_db():
+
+    """
+    Test, if close_db actually closes the connection
+    """
+
+    db_connect = DBConnect(DB_URL, DB_NAME)
+    assert await db_connect.close_db() is None
