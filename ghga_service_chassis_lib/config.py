@@ -68,7 +68,7 @@ def yaml_settings_factory(
         if config_yaml is None:
             return {}
 
-        with open(config_yaml, "r") as yaml_file:
+        with open(config_yaml, "r", encoding="utf8") as yaml_file:
             return yaml.safe_load(yaml_file)
 
     return yaml_settings
