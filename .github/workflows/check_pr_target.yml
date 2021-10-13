@@ -1,0 +1,29 @@
+name: Check if PRs have the right target (base) branch
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  branch_check:
+    runs-on: ubuntu-latest
+    steps:
+      - id: dev2main
+        name: Only allow PRs to main that come from dev
+        if: ${{ github.base_ref == 'main' && github.head_ref != 'dev'}}
+        run: |
+          echo "PRs into 'main' must come from 'dev'" >&2
+          exit 1
+      # Once int branch is added replace the above step by the following steps:
+      # - id: dev2int
+      #   name: Only allow PRs to int that come from dev
+      #   if: ${{ github.base_ref == 'int' && github.head_ref != 'dev'}}
+      #   run: |
+      #     echo "PRs into 'int' must come from 'dev'" >&2
+      #     exit 1
+      # - id: int2main
+      #   name: Only allow PRs to main that come from int
+      #   if: ${{ github.base_ref == 'main' && github.head_ref != 'int'}}
+      #   run: |
+      #     echo "PRs into 'main' must come from 'int'" >&2
+      #     exit 1
