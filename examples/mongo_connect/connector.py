@@ -13,38 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 """
-Test mongodb connection module
+Example to show, how we can establish a connection and insert data to the database
 """
-import pytest
+
+import asyncio
 
 from ghga_service_chassis_lib.mongo_connect import DBConnect
 
 DB_URL = "mongodb://db:27017"
-DB_NAME = "test"
+DB_NAME = "example"
 
 
-@pytest.mark.asyncio
-async def test_get_collection():
+async def main():
 
-    """
-    Test, if we can establish a connection and insert data to the database
-    """
-
+    """Small example of how to connect to a mongodb database"""
     db_connect = DBConnect(DB_URL, DB_NAME)
-    collection = await db_connect.get_collection("test_collection")
+    collection = await db_connect.get_collection("example_collection")
     await collection.delete_many({})
-    await collection.insert_one({"id": "key", "value": 0})  # type: ignore
-    key_value = await collection.count_documents({})  # type: ignore
-    assert key_value == 1
+    await collection.insert_one({"id": "key", "value": 0})
+    key_value = await collection.count_documents({})
+
+    # This should be one
+    print(f"Insterted {key_value} documents into the database.")
+    await collection.delete_many({})
+    await db_connect.close_db()
 
 
-@pytest.mark.asyncio
-async def test_close_db():
-
-    """
-    Test, if close_db actually closes the connection
-    """
-
-    db_connect = DBConnect(DB_URL, DB_NAME)
-    assert await db_connect.close_db() is None
+if __name__ == "__main__":
+    asyncio.run(main())
