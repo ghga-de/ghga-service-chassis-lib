@@ -24,8 +24,8 @@ jobs:
           pip install ".[all]"
       - name: Run pytest
         run: |
-          pytest --cov=./ --cov-report=xml ./test/unit
-          pytest --cov=./ --cov-report=xml ./test/integration
+          pytest --cov=./ --cov-report=xml ./tests/unit
+          pytest --cov=./ --cov-report=xml ./tests/integration
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
         with:
