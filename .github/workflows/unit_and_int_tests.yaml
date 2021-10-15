@@ -12,6 +12,7 @@ jobs:
         ports:
           - 5672:5672
           - 15672:15672
+
     steps:
       - uses: actions/checkout@v1
       - name: Set up Python 3.9
@@ -23,5 +24,9 @@ jobs:
           pip install ".[all]"
       - name: Run pytest
         run: |
-          pytest tests/unit/*
-          pytest tests/integration/*
+          pytest --cov=./ --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
+          verbose: true
