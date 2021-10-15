@@ -14,6 +14,11 @@ jobs:
           - 15672:15672
       db:
         image: mongo:4.4.6
+        volumes:
+          - mongodb-data:/data/db
+        env:
+          PUID: 1000
+          PGID: 1000
         ports:
           - 27017:27017
     steps:
