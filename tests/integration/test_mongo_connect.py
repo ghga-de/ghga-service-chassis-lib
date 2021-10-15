@@ -33,7 +33,7 @@ async def test_get_collection():
 
     db_connect = DBConnect(DB_URL, DB_NAME)
     collection = await db_connect.get_collection("test_collection")
-    await collection.delete_many({})
+    # await collection.delete_many({})
     await collection.insert_one({"id": "key", "value": 0})  # type: ignore
     key_value = await collection.count_documents({})  # type: ignore
     assert key_value == 1
