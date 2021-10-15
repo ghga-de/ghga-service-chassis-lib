@@ -1,6 +1,8 @@
 name: Unit and Integration Tests
 
 on: push
+env:
+  MAIN_SRC_DIR: ./ghga_service_chassis_lib
 
 jobs:
   unit_and_int_tests:
@@ -24,8 +26,8 @@ jobs:
           pip install ".[all]"
       - name: Run pytest
         run: |
-          pytest --cov=./ --cov-report=xml ./tests/unit
-          pytest --cov=./ --cov-report=xml ./tests/integration
+          pytest --cov="./${MAIN_SRC_DIR}" --cov-report=xml ./tests/unit
+          pytest --cov="./${MAIN_SRC_DIR}" --cov-report=xml ./tests/integration
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
         with:
