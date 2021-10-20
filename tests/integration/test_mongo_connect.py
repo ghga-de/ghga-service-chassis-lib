@@ -17,11 +17,9 @@
 Test mongodb connection module
 """
 import pytest
+from testcontainers.mongodb import MongoDbContainer
 
 from ghga_service_chassis_lib.mongo_connect import DBConnect
-
-DB_URL = "mongodb://db:27017"
-DB_NAME = "test"
 
 
 @pytest.mark.asyncio
@@ -31,12 +29,12 @@ async def test_get_collection():
     Test, if we can establish a connection and insert data to the database
     """
 
-    db_connect = DBConnect(DB_URL, DB_NAME)
-    collection = await db_connect.get_collection("test_collection")
-    await collection.delete_many({})
-    await collection.insert_one({"id": "key", "value": 0})  # type: ignore
-    key_value = await collection.count_documents({})  # type: ignore
-    assert key_value == 1
+    with MongoDbContainer("mongo:latest") as mongo:
+        db_connect = DBConnect(mongo.get_connection_url(), mongo.MONGO_DB)
+        collection = await db_connect.get_collection("test_collection")
+        await collection.insert_one({"id": "key", "value": 0})  # type: ignore
+        key_value = await collection.count_documents({})  # type: ignore
+        assert key_value == 1
 
 
 @pytest.mark.asyncio
@@ -46,5 +44,6 @@ async def test_close_db():
     Test, if close_db actually closes the connection
     """
 
-    db_connect = DBConnect(DB_URL, DB_NAME)
-    assert await db_connect.close_db() is None
+    with MongoDbContainer("mongo:latest") as mongo:
+        db_connect = DBConnect(mongo.get_connection_url(), mongo.MONGO_DB)
+        assert await db_connect.close_db() is None
