@@ -1,5 +1,4 @@
 ![tests](https://github.com/ghga-de/ghga-service-chassis-lib/actions/workflows/unit_and_int_tests.yaml/badge.svg)
-[![PyPI status](https://img.shields.io/pypi/status/ghga_service_chassis_lib.svg)](https://pypi.python.org/pypi/ghga_service_chassis_lib/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/ghga_service_chassis_lib.svg)](https://pypi.python.org/pypi/ghga_service_chassis_lib/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/ghga_service_chassis_lib.svg)](https://pypi.python.org/pypi/ghga_service_chassis_lib/)
 
