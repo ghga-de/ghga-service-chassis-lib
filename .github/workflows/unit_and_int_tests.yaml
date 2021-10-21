@@ -1,22 +1,25 @@
 name: Unit and Integration Tests
 
 on: push
-env:
-  MAIN_SRC_DIR: ./ghga_service_chassis_lib
 
 jobs:
   unit_and_int_tests:
     runs-on: ubuntu-latest
     name: Unit and Integration Tests
-    services:
-      rabbitmq:
-        image: rabbitmq:3-management
-        ports:
-          - 5672:5672
-          - 15672:15672
+    #services:
+    # Needed for all services that use RabbitMQ in Testing
+    # rabbitmq:
+    #   image: rabbitmq:3-management
+    #   ports:
+    #     - 5672:5672
+    #     - 15672:15672
 
     steps:
       - uses: actions/checkout@v1
+      - name: Retrieve main src dir
+        id: main_src_dir
+        run: |
+          echo "::set-output name=MAIN_SRC_DIR::${PWD}/$(./scripts/get_package_name.py)"
       - name: Set up Python 3.9
         uses: actions/setup-python@v2
         with:
@@ -26,8 +29,9 @@ jobs:
           pip install ".[all]"
       - name: Run pytest
         run: |
-          pytest --cov="./${MAIN_SRC_DIR}" --cov-report=xml ./tests/unit
-          pytest --cov="./${MAIN_SRC_DIR}" --cov-report=xml ./tests/integration
+          pytest \
+            --cov="${{ steps.main_src_dir.outputs.MAIN_SRC_DIR }}" \
+            --cov-report=xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
         with:
