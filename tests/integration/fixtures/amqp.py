@@ -16,8 +16,8 @@
 """RabbitMQ fixtures"""
 
 import os
-import pika
 
+import pika
 
 RABBITMQ_TEST_HOST = (
     os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"

@@ -14,11 +14,14 @@
 # limitations under the License.
 
 """Test config parsing module"""
-import shutil
-import pathlib
 import os
+import pathlib
+import shutil
+
 import pytest
+
 from ghga_service_chassis_lib.config import config_from_yaml
+
 from .fixtures.config import BasicConfig, config_yamls, env_var_sets
 
 

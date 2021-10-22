@@ -17,11 +17,23 @@
 
 import json
 import logging
-from typing import Callable, Tuple, Type, Optional
 from dataclasses import dataclass
 from datetime import datetime
-import pika
+from typing import Callable, Optional, Tuple, Type
+
 import jsonschema
+import pika
+from pydantic import BaseSettings
+
+
+class PubSubConfigBase(BaseSettings):
+    """A base class with config params related to
+    asynchronous messaging.
+    Inherit your config class from this class if you need
+    to run an async PubSub API."""
+
+    rabbitmq_host: str = "rabbitmq"
+    rabbitmq_port: int = 5672
 
 
 class MaxAttemptsReached(Exception):

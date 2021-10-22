@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright 2021 Universität Tübingen, DKFZ and EMBL
 # for the German Human Genome-Phenome Archive (GHGA)
 #
@@ -13,40 +15,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This script publishes messages to an AMQP Topic"""
+"""Extracts the package name from the setup.cfg"""
 
-# pylint: disable-all
-
-
-import json
 from pathlib import Path
 
-import pika
-
-from ghga_service_chassis_lib.pubsub import AmqpTopic
-
-HERE = Path(__file__).parent.resolve()
+REPO_ROOT_DIR = Path(__file__).parent.parent.resolve()
+SETUP_CFG_PATH = REPO_ROOT_DIR / "setup.cfg"
+NAME_PREFIX = "name = "
 
 
 def run():
-    """Runs publishing process."""
+    """Extracts the package name"""
 
-    # read json schema:
-    with open(HERE / "message_schema.json", "r") as schema_file:
-        message_schema = json.load(schema_file)
-
-    # create a topic object:
-    topic = AmqpTopic(
-        connection_params=pika.ConnectionParameters(host="rabbitmq"),
-        topic_name="my_topic",
-        service_name="publisher",
-        json_schema=message_schema,
-    )
-
-    # publish 100 messages:
-    for count in range(0, 10):
-        message = {"count": count}
-        topic.publish(message)
+    with open(SETUP_CFG_PATH, "r", encoding="utf8") as setup_cfg:
+        for line in setup_cfg.readlines():
+            line_stripped = line.strip()
+            if line_stripped.startswith(NAME_PREFIX):
+                package_name = line_stripped[len(NAME_PREFIX) :]
+                print(package_name)
+                return
 
 
 if __name__ == "__main__":
