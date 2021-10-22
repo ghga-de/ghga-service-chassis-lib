@@ -15,21 +15,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: skip-file
 
 """This script checks that the license and license headers
 exists and that they are up to date.
 """
 
 import argparse
-import itertools
-import os
 import re
 import sys
 from datetime import date
+from pathlib import Path
 from typing import List, Tuple
 
 # root directory of the package:
-ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+ROOT_DIR = Path(__file__).parent.parent.resolve()
 
 # exlude files and dirs from license header check:
 EXCLUDE = [
@@ -59,14 +59,16 @@ EXCLUDE = [
     ".mypy_cache",
     "db_migration",
     ".pytest_cache",
-    ".coverage",
+    ".editorconfig",
+    ".static_files",
+    ".mandatory_files",
 ]
 
 # exclude file by file ending from license header check:
 EXCLUDE_ENDINGS = ["json", "pyc", "yaml", "yml", "md"]
 
 # exclude any files with names that match any of the following regex:
-EXCLUDE_PATTERN = [r".*\.egg-info.*", r".*__cache__.*", r".*,cover"]
+EXCLUDE_PATTERN = [r".*\.egg-info.*", r".*__cache__.*", r".*\.git.*"]
 
 # The License header, "{year}" will be replaced by current year:
 LICENSE_HEADER = """Copyright {year} {author}
@@ -91,14 +93,14 @@ LICENCE_FILE = "LICENSE"
 
 
 def get_target_files(  # pylint: disable=dangerous-default-value
-    target_dir: str,
+    target_dir: Path,
     exclude: List[str] = EXCLUDE,
     exclude_endings: List[str] = EXCLUDE_ENDINGS,
     exclude_pattern: List[str] = EXCLUDE_PATTERN,
-) -> List[str]:
+) -> List[Path]:
     """Get target files that are not match the exclude conditions.
     Args:
-        target_dir (str): The target dir to search.
+        target_dir (pathlib.Path): The target dir to search.
         exclude (List[str], optional):
             Overwrite default list of file/dir paths relative to
             the target dir that shall be excluded.
@@ -109,32 +111,21 @@ def get_target_files(  # pylint: disable=dangerous-default-value
             Overwrite default list of regex patterns match file path
             for exclusion.
     """
-    abs_target_dir = os.path.abspath(target_dir)
-    exclude_normalized = [
-        os.path.relpath(os.path.join(abs_target_dir, excl), abs_target_dir)
-        for excl in exclude
-    ]
+    abs_target_dir = Path(target_dir).absolute()
+    exclude_normalized = [(abs_target_dir / excl).absolute() for excl in exclude]
 
     # get all files:
-    all_files = list(
-        itertools.chain.from_iterable(
-            [
-                [
-                    os.path.relpath(os.path.join(root, file_), abs_target_dir)
-                    for file_ in files
-                ]
-                for root, _, files in os.walk(abs_target_dir)
-                if len(files) > 0
-            ]
-        )
-    )
+    all_files = [
+        file_.absolute() for file_ in Path(abs_target_dir).rglob("*") if file_.is_file()
+    ]
+
     target_files = [
         file_
         for file_ in all_files
         if not (
-            any([file_.startswith(excl) for excl in exclude_normalized])
-            or any([file_.endswith(ending) for ending in exclude_endings])
-            or any([re.match(pattern, file_) for pattern in exclude_pattern])
+            any([file_.is_relative_to(excl) for excl in exclude_normalized])
+            or any([str(file_).endswith(ending) for ending in exclude_endings])
+            or any([re.match(pattern, str(file_)) for pattern in exclude_pattern])
         )
     ]
     return target_files
@@ -167,18 +158,18 @@ def format_license_header_template(license_header_template: str, author: str) ->
 
 
 def check_file_headers(  # pylint: disable=dangerous-default-value
-    target_dir: str,
+    target_dir: Path,
     license_header: str = LICENSE_HEADER,
     author: str = AUTHOR,
     exclude: List[str] = EXCLUDE,
     exclude_endings: List[str] = EXCLUDE_ENDINGS,
     exclude_pattern: List[str] = EXCLUDE_PATTERN,
-) -> Tuple[List[str], List[str]]:
+) -> Tuple[List[Path], List[Path]]:
     """Check files for presence of a license header and verify that
     the copyright notice is up to date (correct year).
 
     Args:
-        target_dir (str): The target dir to search.
+        target_dir (pathlib.Path): The target dir to search.
         license_header (str, optional):
             A string of the license header. You may include
             "{year}" which will be replace by the current year.
@@ -208,14 +199,14 @@ def check_file_headers(  # pylint: disable=dangerous-default-value
     license_header_formatted = format_license_header_template(license_header, author)
 
     # check if license header present in file:
-    passed_files: List[str] = []
-    failed_files: List[str] = []
+    passed_files: List[Path] = []
+    failed_files: List[Path] = []
 
     n_header_lines = len(license_header_formatted.split("\n"))
 
     for target_file in target_files:
         # read in file
-        with open(os.path.join(target_dir, target_file), "r") as file_:
+        with open(target_dir / target_file, "r") as file_:
             file_content = normalized_text(file_.read())
         # check whether file has enough lines
         file_lines = file_content.split("\n")
@@ -234,7 +225,7 @@ def check_file_headers(  # pylint: disable=dangerous-default-value
 
 
 def check_license_file(
-    license_file: str,
+    license_file: Path,
     copyright_notice: str = LICENSE_HEADER,
     author: str = AUTHOR,
 ) -> bool:
@@ -242,7 +233,7 @@ def check_license_file(
     License file is up to data.
 
     Args:
-        license_file (str, optional): Overwrite the default license file.
+        license_file (pathlib.Path, optional): Overwrite the default license file.
         copyright_notice (str, optional):
             A string of the copyright notice (usually same as license header).
             You may include "{year}" which will be replace by the current year.
@@ -253,8 +244,8 @@ def check_license_file(
             notice. This defaults to an auther info for GHGA.
     """
 
-    if not os.path.isfile(license_file):
-        print(f'Could not find license file "{license_file}".')
+    if not license_file.is_file():
+        print(f'Could not find license file "{str(license_file)}".')
         return False
 
     with open(license_file, "r") as file_:
@@ -290,7 +281,8 @@ def run():
 
     args = parser.parse_args()
 
-    target_dir = args.target_dir if args.target_dir else ROOT_DIR
+    target_dir = Path(args.target_dir).absolute() if args.target_dir else ROOT_DIR
+
     print(f'Working in "{target_dir}"\n')
 
     print("Checking license headers in files:")
@@ -298,13 +290,14 @@ def run():
     print(f"{len(passed_files)} files passed.")
     print(f"{len(failed_files)} files failed" + (":" if failed_files else "."))
     for failed_file in failed_files:
-        print(f'  - "{failed_file}"')
+        print(f'  - "{failed_file.relative_to(target_dir)}"')
+
     print("")
 
     if args.no_license_file_check:
         license_file_valid = True
     else:
-        license_file = os.path.join(target_dir, LICENCE_FILE)
+        license_file = Path(target_dir / LICENCE_FILE)
         print(f'Checking if LICENSE file is up to date: "{license_file}"')
         license_file_valid = check_license_file(license_file)
         print(
