@@ -16,7 +16,7 @@ scripts/README.md
 
 .github/workflows/check_pr_target.yaml
 .github/workflows/static_code_analysis.yaml
-.github/workflows/check_mandatory_and_static_files.yam
+.github/workflows/check_mandatory_and_static_files.yaml
 
 .editorconfig
 .flake8
