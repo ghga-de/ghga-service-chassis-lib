@@ -19,10 +19,22 @@ with file objects along with some specific implementations
 of that DAO.
 """
 
-from typing import Tuple
+from typing import Optional
 
 
-class BucketError(RuntimeError):
+class ObjectStorageDaoError(RuntimeError):
+    """Generic base exceptions for all error related to the DAO base class."""
+
+
+class OutOfContextError(ObjectStorageDaoError):
+    """Thrown when the context manager is used out of context."""
+
+    def __init__(self, context_manager_name: str):
+        message = f"{context_manager_name} is used outside of a with block."
+        super().__init__(message)
+
+
+class BucketError(ObjectStorageDaoError):
     """Generic base exceptions for error that occur while handling buckets."""
 
     pass  # pylint: disable=unnecessary-pass
@@ -31,16 +43,28 @@ class BucketError(RuntimeError):
 class BucketNotFound(BucketError):
     """Thrown when trying to access a bucket with an ID that doesn't exist."""
 
-    pass  # pylint: disable=unnecessary-pass
+    def __init__(self, bucket_id: Optional[str]):
+        message = (
+            "The bucket "
+            + (f"with ID '{bucket_id}' " if bucket_id else "")
+            + "does not exist."
+        )
+        super().__init__(message)
 
 
-class BucketIdAlreadyInUse(BucketError):
+class BucketAlreadyExists(BucketError):
     """Thrown when trying to create a bucket with an ID that already exists."""
 
-    pass  # pylint: disable=unnecessary-pass
+    def __init__(self, bucket_id: Optional[str]):
+        message = (
+            "The bucket "
+            + (f"with ID '{bucket_id}' " if bucket_id else "")
+            + "already exist."
+        )
+        super().__init__(message)
 
 
-class FileObjectError(RuntimeError):
+class FileObjectError(ObjectStorageDaoError):
     """Generic base exceptions for error that occur while handling file objects."""
 
     pass  # pylint: disable=unnecessary-pass
@@ -49,27 +73,41 @@ class FileObjectError(RuntimeError):
 class FileObjectNotFound(FileObjectError):
     """Thrown when trying to access a bucket with an ID that doesn't exist."""
 
-    pass  # pylint: disable=unnecessary-pass
+    def __init__(self, object_id: Optional[str]):
+        message = (
+            "The object "
+            + (f"with ID '{object_id}' " if object_id else "")
+            + "does not exist."
+        )
+        super().__init__(message)
 
 
-class FileObjectAlreadyInUse(FileObjectError):
+class FileObjectAlreadyExists(FileObjectError):
     """Thrown when trying to access a file with an ID that doesn't exist."""
 
-    pass  # pylint: disable=unnecessary-pass
+    def __init__(self, object_id: Optional[str]):
+        message = (
+            "The object "
+            + (f"with ID '{object_id}' " if object_id else "")
+            + "already exist."
+        )
+        super().__init__(message)
 
 
-class ObjectStorageDAO:
+class ObjectStorageDao:
     """
     A DAO base class for interacting with file objects.
     Exceptions may include:
         - NotImplementedError (if a DAO implementation chooses to not implement a
           specific method)
-        - BucketError, or derived exceptions:
-            - BucketNotFound
-            - BucketIdAlreadyInUse
-        - FileObjectError, or derived exceptions:
-            - FileObjectNotFound
-            - FileObjectAlreadyInUse
+        - ObjectStorageDaoError, or derived exceptions:
+            - OutOfContextError (if the context manager protocol is not used correctly)
+            - BucketError, or derived exceptions:
+                - BucketNotFound
+                - BucketAlreadyExists
+            - FileObjectError, or derived exceptions:
+                - FileObjectNotFound
+                - FileObjectAlreadyExists
     """
 
     # Connection/session teardown and setup should
@@ -80,6 +118,7 @@ class ObjectStorageDAO:
     def __enter__(self):
         """Setup storage connection/session."""
         ...
+        return self
 
     def __exit__(self, err_type, err_value, err_traceback):
         """Teardown storage connection/session"""
@@ -88,14 +127,14 @@ class ObjectStorageDAO:
     # Please implement following methods for interacting
     # with file objects and buckets:
 
-    def create_bucket(self, bucket_id: str):
+    def create_bucket(self, bucket_id: str) -> None:
         """
         Create a bucket (= a structure that can hold multiple file objects) with the
         specified unique ID.
         """
         raise NotImplementedError()
 
-    def delete_bucket(self, bucket_id: str):
+    def delete_bucket(self, bucket_id: str) -> None:
         """
         Delete a bucket (= a structure that can hold multiple file objects) with the
         specified unique ID.
@@ -113,7 +152,7 @@ class ObjectStorageDAO:
 
     def get_object_download_url(
         self, bucket_id: str, object_id: str, expires_after: int = 86400
-    ) -> Tuple[str, str]:
+    ) -> str:
         """Generates and returns a presigns HTTP-URL to download a file object with
         the specified ID (`object_id`) from bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`).
@@ -122,7 +161,7 @@ class ObjectStorageDAO:
 
     def delete_object_file(
         self, bucket_id: str, object_id: str, expires_after: int = 86400
-    ) -> str:
+    ) -> None:
         """Generates and returns an HTTP URL to upload a new file object with the given
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`).
