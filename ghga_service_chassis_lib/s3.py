@@ -154,7 +154,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         )
 
         # will be set on __enter__:
-        self._client = None
+        self._client: Optional[botocore.client.BaseClient] = None
 
     def __repr__(self) -> str:
         return (
@@ -192,10 +192,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         Create a bucket (= a structure that can hold multiple file objects) with the
         specified unique ID.
         """
-        # type narrowing cannot be moved into dedicated function because of following
-        # issue: https://github.com/python/mypy/issues/11475
-        if not isinstance(self._client, botocore.client.S3):
+        if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError(context_manager_name=self.__class__.__name__)
+
         try:
             self._client.create_bucket(Bucket=bucket_id)
         except botocore.exceptions.ClientError as error:
@@ -206,9 +205,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         Delete a bucket (= a structure that can hold multiple file objects) with the
         specified unique ID.
         """
-        # type narrowing cannot be moved into dedicated function because of following
-        # issue: https://github.com/python/mypy/issues/11475
-        if not isinstance(self._client, botocore.client.S3):
+        if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError(context_manager_name=self.__class__.__name__)
 
         try:
@@ -225,9 +222,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`).
         """
-        # type narrowing cannot be moved into dedicated function because of following
-        # issue: https://github.com/python/mypy/issues/11475
-        if not isinstance(self._client, botocore.client.S3):
+        if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError(context_manager_name=self.__class__.__name__)
 
         conditions = [
@@ -256,9 +251,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         the specified ID (`object_id`) from bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`).
         """
-        # type narrowing cannot be moved into dedicated function because of following
-        # issue: https://github.com/python/mypy/issues/11475
-        if not isinstance(self._client, botocore.client.S3):
+        if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError(context_manager_name=self.__class__.__name__)
 
         try:
@@ -274,16 +267,64 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
         return presigned_url
 
-    def delete_object_file(
+    def does_object_exist(
+        self, bucket_id: str, object_id: str, object_md5sum: Optional[str] = None
+    ) -> bool:
+        """Check whether an object with specified ID (`object_id`) exists in the bucket
+        with the specified id (`bucket_id`). Optionally, a md5 checksum (`object_md5sum`)
+        may be provided to check the objects content.
+        Return `True` if checks succeed and `False` otherwise.
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError(context_manager_name=self.__class__.__name__)
+
+        if object_md5sum is not None:
+            raise NotImplementedError("Md5 checking is not yet implemented.")
+
+        try:
+            _ = self._client.head_object(
+                Bucket=bucket_id,
+                Key=object_id,
+            )
+        except botocore.exceptions.ClientError:
+            return False
+
+        return True
+
+    def copy_object(
+        self,
+        source_bucket_id: str,
+        source_object_id: str,
+        dest_bucket_id: str,
+        dest_object_id: str,
+    ) -> None:
+        """Copy an object from one bucket(`source_bucket_id` and `source_object_id`) to
+        another bucket (`dest_bucket_id` and `dest_object_id`).
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError(context_manager_name=self.__class__.__name__)
+
+        try:
+            copy_source = {
+                "Bucket": source_bucket_id,
+                "Key": source_object_id,
+            }
+            self._client.copy(
+                CopySource=copy_source,
+                Bucket=dest_bucket_id,
+                Key=dest_object_id,
+            )
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(error) from error
+
+    def delete_object(
         self, bucket_id: str, object_id: str, expires_after: int = 86400
     ) -> None:
         """Generates and returns an HTTP URL to upload a new file object with the given
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`).
         """
-        # type narrowing cannot be moved into dedicated function because of following
-        # issue: https://github.com/python/mypy/issues/11475
-        if not isinstance(self._client, botocore.client.S3):
+        if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError(context_manager_name=self.__class__.__name__)
 
         try:

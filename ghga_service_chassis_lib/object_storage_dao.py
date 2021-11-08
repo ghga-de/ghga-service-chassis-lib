@@ -159,7 +159,29 @@ class ObjectStorageDao:
         """
         raise NotImplementedError()
 
-    def delete_object_file(
+    def does_object_exist(
+        self, bucket_id: str, object_id: str, object_md5sum: Optional[str] = None
+    ) -> bool:
+        """Check whether an object with specified ID (`object_id`) exists in the bucket
+        with the specified id (`bucket_id`). Optionally, a md5 checksum (`object_md5sum`)
+        may be provided to check the objects content.
+        Return `True` if checks succeed and `False` otherwise.
+        """
+        raise NotImplementedError()
+
+    def copy_object(
+        self,
+        source_bucket_id: str,
+        source_object_id: str,
+        dest_bucket_id: str,
+        dest_object_id: str,
+    ) -> None:
+        """Copy an object from one bucket(`source_bucket_id` and `source_object_id`) to
+        another bucket (`dest_bucket_id` and `dest_object_id`).
+        """
+        raise NotImplementedError()
+
+    def delete_object(
         self, bucket_id: str, object_id: str, expires_after: int = 86400
     ) -> None:
         """Generates and returns an HTTP URL to upload a new file object with the given
