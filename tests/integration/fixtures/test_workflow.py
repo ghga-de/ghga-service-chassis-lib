@@ -3,7 +3,7 @@ import requests
 from ghga_service_chassis_lib.s3 import ObjectStorageS3, S3Credentials
 
 bucket1_id = "mytestbucket1"
-bucket2_id = "mytestbucket1"
+bucket2_id = "mytestbucket2"
 object_id = "mytestfile"
 
 TEST_CREDENTIALS = S3Credentials(aws_access_key_id="test", aws_secret_access_key="test")

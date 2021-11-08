@@ -41,7 +41,7 @@ class BucketError(ObjectStorageDaoError):
     pass  # pylint: disable=unnecessary-pass
 
 
-class BucketNotFound(BucketError):
+class BucketNotFoundError(BucketError):
     """Thrown when trying to access a bucket with an ID that doesn't exist."""
 
     def __init__(self, bucket_id: Optional[str]):
@@ -65,31 +65,37 @@ class BucketAlreadyExists(BucketError):
         super().__init__(message)
 
 
-class FileObjectError(ObjectStorageDaoError):
+class ObjectError(ObjectStorageDaoError):
     """Generic base exceptions for error that occur while handling file objects."""
 
     pass  # pylint: disable=unnecessary-pass
 
 
-class FileObjectNotFound(FileObjectError):
+class ObjectNotFoundError(ObjectError):
     """Thrown when trying to access a bucket with an ID that doesn't exist."""
 
-    def __init__(self, object_id: Optional[str]):
+    def __init__(
+        self, bucket_id: Optional[str] = None, object_id: Optional[str] = None
+    ):
         message = (
             "The object "
             + (f"with ID '{object_id}' " if object_id else "")
+            + (f"in bucket with ID '{bucket_id}' " if bucket_id else "")
             + "does not exist."
         )
         super().__init__(message)
 
 
-class FileObjectAlreadyExists(FileObjectError):
+class ObjectAlreadyExistsError(ObjectError):
     """Thrown when trying to access a file with an ID that doesn't exist."""
 
-    def __init__(self, object_id: Optional[str]):
+    def __init__(
+        self, bucket_id: Optional[str] = None, object_id: Optional[str] = None
+    ):
         message = (
             "The object "
             + (f"with ID '{object_id}' " if object_id else "")
+            + (f"in bucket with ID '{bucket_id}' " if bucket_id else "")
             + "already exist."
         )
         super().__init__(message)
@@ -113,11 +119,11 @@ class ObjectStorageDao:
         - ObjectStorageDaoError, or derived exceptions:
             - OutOfContextError (if the context manager protocol is not used correctly)
             - BucketError, or derived exceptions:
-                - BucketNotFound
+                - BucketNotFoundError
                 - BucketAlreadyExists
-            - FileObjectError, or derived exceptions:
-                - FileObjectNotFound
-                - FileObjectAlreadyExists
+            - ObjectError, or derived exceptions:
+                - ObjectNotFoundError
+                - ObjectAlreadyExistsError
     """
 
     # Connection/session teardown and setup should
@@ -137,6 +143,12 @@ class ObjectStorageDao:
     # Please implement following methods for interacting
     # with file objects and buckets:
 
+    def does_bucket_exist(self, bucket_id: str) -> bool:
+        """Check whether a bucket with the specified ID (`bucket_id`) exists.
+        Return `True` if it exists and `False` otherwise.
+        """
+        raise NotImplementedError()
+
     def create_bucket(self, bucket_id: str) -> None:
         """
         Create a bucket (= a structure that can hold multiple file objects) with the
@@ -144,10 +156,12 @@ class ObjectStorageDao:
         """
         raise NotImplementedError()
 
-    def delete_bucket(self, bucket_id: str) -> None:
+    def delete_bucket(self, bucket_id: str, delete_content: bool = False) -> None:
         """
         Delete a bucket (= a structure that can hold multiple file objects) with the
-        specified unique ID.
+        specified unique ID. If `delete_content` is set to True, any contained objects
+        will be deleted, if False (the default) an Error will be raised if the bucket is
+        not empty.
         """
         raise NotImplementedError()
 

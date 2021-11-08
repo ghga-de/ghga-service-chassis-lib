@@ -17,6 +17,8 @@
 Test S3 storage DAO
 """
 
+from testcontainers.localstack import LocalStackContainer
+
 from ghga_service_chassis_lib.s3 import ObjectStorageS3
 
 from .fixtures.s3 import (
@@ -26,7 +28,7 @@ from .fixtures.s3 import (
 )
 
 
-def test_complete_workflow():
+def test_typical_workflow():
     """
     Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
     """
@@ -34,46 +36,69 @@ def test_complete_workflow():
     bucket2_id = "mytestbucket2"
     object_id = "mytestfile"
 
-    with ObjectStorageS3(
-        endpoint_url="http://s3-localstack:4566", credentials=TEST_CREDENTIALS
-    ) as storage:
-        # create a new bucket:
-        storage.create_bucket(bucket1_id)
+    with LocalStackContainer().with_services("s3") as localstack:
+        with ObjectStorageS3(
+            endpoint_url=localstack.get_url(), credentials=TEST_CREDENTIALS
+        ) as storage:
+            # confirm that no bucket with the specified id can be found:
+            assert not storage.does_bucket_exist(bucket1_id)
 
-        # upload a test file to that bucket
-        upload_url = storage.get_object_upload_url(
-            bucket_id=bucket1_id, object_id=object_id
-        )
-        upload_test_file(upload_url)
+            # create a new bucket:
+            storage.create_bucket(bucket1_id)
 
-        # check if file can be found:
-        assert storage.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
+            # confirm that bucket can be found:
+            assert storage.does_bucket_exist(bucket1_id)
 
-        # download the file from the first bucket:
-        download_url1 = storage.get_object_download_url(
-            bucket_id=bucket1_id, object_id=object_id
-        )
-        download_and_check_test_file(download_url1)
+            # upload a test file to that bucket
+            upload_url = storage.get_object_upload_url(
+                bucket_id=bucket1_id, object_id=object_id
+            )
+            upload_test_file(upload_url)
 
-        # create a second bucket and move (copy & delete) the file there:
-        storage.create_bucket(bucket2_id)
-        storage.copy_object(
-            source_bucket_id=bucket1_id,
-            source_object_id=object_id,
-            dest_bucket_id=bucket2_id,
-            dest_object_id=object_id,
-        )
-        storage.delete_object(bucket_id=bucket1_id, object_id=object_id)
+            # confirm that file can be found:
+            assert storage.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
 
-        # confirm that file is not longer found in bucket1 but in bucket 2:
-        assert not storage.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
-        assert storage.does_object_exist(bucket_id=bucket2_id, object_id=object_id)
+            # download the file from the first bucket:
+            download_url1 = storage.get_object_download_url(
+                bucket_id=bucket1_id, object_id=object_id
+            )
+            download_and_check_test_file(download_url1)
 
-        # delete bucket 1:
-        storage.delete_bucket(bucket1_id)
+            # create a second bucket and move (copy & delete) the file there:
+            storage.create_bucket(bucket2_id)
+            storage.copy_object(
+                source_bucket_id=bucket1_id,
+                source_object_id=object_id,
+                dest_bucket_id=bucket2_id,
+                dest_object_id=object_id,
+            )
+            storage.delete_object(bucket_id=bucket1_id, object_id=object_id)
 
-        # download the file from the second bucket:
-        download_url2 = storage.get_object_download_url(
-            bucket_id=bucket2_id, object_id=object_id
-        )
-        download_and_check_test_file(download_url2)
+            # confirm that file is not longer found in bucket1 but in bucket 2:
+            assert not storage.does_object_exist(
+                bucket_id=bucket1_id, object_id=object_id
+            )
+            assert storage.does_object_exist(bucket_id=bucket2_id, object_id=object_id)
+
+            # delete bucket 1:
+            storage.delete_bucket(bucket1_id)
+
+            # download the file from the second bucket:
+            download_url2 = storage.get_object_download_url(
+                bucket_id=bucket2_id, object_id=object_id
+            )
+            download_and_check_test_file(download_url2)
+
+
+def test_recreation_of_existing_bucket():
+    """
+    Tests whether the re-creaction of an existing bucket fails with the expected error.
+    """
+    bucket_id = "mytestbucket"
+
+    with LocalStackContainer().with_services("s3") as localstack:
+        with ObjectStorageS3(
+            endpoint_url=localstack.get_url(), credentials=TEST_CREDENTIALS
+        ) as storage:
+            storage.create_bucket(bucket_id)
+            storage.create_bucket(bucket_id)

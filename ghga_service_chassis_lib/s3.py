@@ -30,10 +30,10 @@ import botocore.exceptions
 from .object_storage_dao import (
     BucketAlreadyExists,
     BucketError,
-    BucketNotFound,
-    FileObjectAlreadyExists,
-    FileObjectError,
-    FileObjectNotFound,
+    BucketNotFoundError,
+    ObjectAlreadyExistsError,
+    ObjectError,
+    ObjectNotFoundError,
     ObjectStorageDao,
     ObjectStorageDaoError,
     OutOfContextError,
@@ -72,19 +72,19 @@ def _translate_s3_client_errors(
 
     # try to exactly match the error code:
     if error_code == "NoSuchBucket":
-        exception = BucketNotFound(bucket_id=bucket_id)
+        exception = BucketNotFoundError(bucket_id=bucket_id)
     elif error_code == "BucketAlreadyExists":
         exception = BucketAlreadyExists(bucket_id=bucket_id)
     elif error_code == "NoSuchKey":
-        exception = FileObjectNotFound(object_id=object_id)
+        exception = ObjectNotFoundError(object_id=object_id)
     elif error_code == "ObjectAlreadyInActiveTierError":
-        exception = FileObjectAlreadyExists(object_id=object_id)
+        exception = ObjectAlreadyExistsError(object_id=object_id)
     else:
         # exact match not found, match by keyword:
         if "Bucket" in error_code:
             exception = BucketError(_format_s3_error_code(error_code))
         elif "Object" in error_code or "Key" in error_code:
-            exception = FileObjectError(_format_s3_error_code(error_code))
+            exception = ObjectError(_format_s3_error_code(error_code))
         else:
             # if nothing matches, return a generic error:
             exception = ObjectStorageDaoError(_format_s3_error_code(error_code))
@@ -107,12 +107,14 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
     with S3 object storages.
     Exceptions may include:
         - BucketError, or derived exceptions:
-            - BucketNotFound
+            - BucketNotFoundError
             - BucketIdAlreadyInUse
-        - FileObjectError, or derived exceptions:
-            - FileObjectNotFound
-            - FileObjectAlreadyExists
+        - ObjectError, or derived exceptions:
+            - ObjectNotFoundError
+            - ObjectAlreadyExistsError
     """
+
+    _out_of_context_error = OutOfContextError(context_manager_name="ObjectStorageS3")
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -156,6 +158,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
         # will be set on __enter__:
         self._client: Optional[botocore.client.BaseClient] = None
+        self._resource: Optional[botocore.client.BaseClient] = None
 
     def __repr__(self) -> str:
         return (
@@ -171,7 +174,16 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
     def __enter__(self) -> ObjectStorageDao:
         """Setup storage connection/session."""
 
-        self._client = boto3.client(  # pylint: disable=invalid-name
+        self._client = boto3.client(
+            service_name=self.service_name,
+            endpoint_url=self.endpoint_url,
+            aws_access_key_id=self._credentials.aws_access_key_id,
+            aws_secret_access_key=self._credentials.aws_secret_access_key,
+            aws_session_token=self._credentials.aws_session_token,
+            config=self._advanced_config,
+        )
+
+        self._resource = boto3.resource(
             service_name=self.service_name,
             endpoint_url=self.endpoint_url,
             aws_access_key_id=self._credentials.aws_access_key_id,
@@ -188,31 +200,109 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         # just deleting the reference to the client instance:
         self._client = None
 
+    def does_bucket_exist(self, bucket_id: str) -> bool:
+        """Check whether a bucket with the specified ID (`bucket_id`) exists.
+        Return `True` if it exists and `False` otherwise.
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise self._out_of_context_error
+
+        try:
+            bucket_list = self._client.list_buckets()
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(error, bucket_id=bucket_id) from error
+
+        for bucket in bucket_list["Buckets"]:
+            if bucket["Name"] == bucket_id:
+                return True
+
+        return False
+
+    def _assert_bucket_exists(self, bucket_id: str) -> None:
+        """Checks if the bucket with specified ID (`bucket_id`) exists and throws an
+        BucketNotFoundError otherwise.
+        """
+        if not self.does_bucket_exist(bucket_id):
+            raise BucketNotFoundError(bucket_id=bucket_id)
+
+    def _assert_bucket_not_exists(self, bucket_id: str) -> None:
+        """Checks if the bucket with specified ID (`bucket_id`) exists. If so, it throws
+        an BucketAlreadyExists.
+        """
+        if self.does_bucket_exist(bucket_id):
+            raise BucketAlreadyExists(bucket_id=bucket_id)
+
     def create_bucket(self, bucket_id: str) -> None:
         """
         Create a bucket (= a structure that can hold multiple file objects) with the
         specified unique ID.
         """
         if not isinstance(self._client, botocore.client.BaseClient):
-            raise OutOfContextError(context_manager_name=self.__class__.__name__)
+            raise self._out_of_context_error
+
+        self._assert_bucket_not_exists(bucket_id)
 
         try:
             self._client.create_bucket(Bucket=bucket_id)
         except botocore.exceptions.ClientError as error:
             raise _translate_s3_client_errors(error, bucket_id=bucket_id) from error
 
-    def delete_bucket(self, bucket_id: str) -> None:
+    def delete_bucket(self, bucket_id: str, delete_content: bool = False) -> None:
         """
         Delete a bucket (= a structure that can hold multiple file objects) with the
-        specified unique ID.
+        specified unique ID. If `delete_content` is set to True, any contained objects
+        will be deleted, if False (the default) an Error will be raised if the bucket is
+        not empty.
         """
-        if not isinstance(self._client, botocore.client.BaseClient):
-            raise OutOfContextError(context_manager_name=self.__class__.__name__)
+        if not isinstance(self._resource, boto3.resources.factory.ServiceResource):
+            raise self._out_of_context_error
+
+        self._assert_bucket_exists(bucket_id)
 
         try:
-            self._client.delete_bucket(Bucket=bucket_id)
+            bucket = self._resource.Bucket(bucket_id)
+            if delete_content:
+                bucket.objects.all().delete()
         except botocore.exceptions.ClientError as error:
             raise _translate_s3_client_errors(error, bucket_id=bucket_id) from error
+
+    def does_object_exist(
+        self, bucket_id: str, object_id: str, object_md5sum: Optional[str] = None
+    ) -> bool:
+        """Check whether an object with specified ID (`object_id`) exists in the bucket
+        with the specified id (`bucket_id`). Optionally, a md5 checksum (`object_md5sum`)
+        may be provided to check the objects content.
+        Return `True` if checks succeed and `False` otherwise.
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise self._out_of_context_error
+
+        if object_md5sum is not None:
+            raise NotImplementedError("Md5 checking is not yet implemented.")
+
+        try:
+            _ = self._client.head_object(
+                Bucket=bucket_id,
+                Key=object_id,
+            )
+        except botocore.exceptions.ClientError:
+            return False
+
+        return True
+
+    def _assert_object_exists(self, bucket_id: str, object_id: str) -> None:
+        """Checks if the file with specified ID (`object_id`) exists in the bucket with
+        the specified ID (`bucket_id`) and throws an ObjectNotFoundError otherwise.
+        """
+        if not self.does_object_exist(bucket_id=bucket_id, object_id=object_id):
+            raise ObjectNotFoundError(bucket_id=bucket_id, object_id=object_id)
+
+    def _assert_object_not_exists(self, bucket_id: str, object_id: str) -> None:
+        """Checks if the file with specified ID (`object_id`) exists in the bucket with
+        the specified ID (`bucket_id`). If so, it throws an ObjectAlreadyExistsError otherwise.
+        """
+        if self.does_object_exist(bucket_id=bucket_id, object_id=object_id):
+            raise ObjectAlreadyExistsError(bucket_id=bucket_id, object_id=object_id)
 
     def get_object_upload_url(
         self, bucket_id: str, object_id: str, expires_after: int = 86400
@@ -222,7 +312,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         You may also specify a custom expiry duration in seconds (`expires_after`).
         """
         if not isinstance(self._client, botocore.client.BaseClient):
-            raise OutOfContextError(context_manager_name=self.__class__.__name__)
+            raise self._out_of_context_error
+
+        self._assert_object_not_exists(bucket_id=bucket_id, object_id=object_id)
 
         conditions = [
             # set upload size limit:
@@ -253,7 +345,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         You may also specify a custom expiry duration in seconds (`expires_after`).
         """
         if not isinstance(self._client, botocore.client.BaseClient):
-            raise OutOfContextError(context_manager_name=self.__class__.__name__)
+            raise self._out_of_context_error
+
+        self._assert_object_exists(bucket_id=bucket_id, object_id=object_id)
 
         try:
             presigned_url = self._client.generate_presigned_url(
@@ -268,30 +362,6 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
         return presigned_url
 
-    def does_object_exist(
-        self, bucket_id: str, object_id: str, object_md5sum: Optional[str] = None
-    ) -> bool:
-        """Check whether an object with specified ID (`object_id`) exists in the bucket
-        with the specified id (`bucket_id`). Optionally, a md5 checksum (`object_md5sum`)
-        may be provided to check the objects content.
-        Return `True` if checks succeed and `False` otherwise.
-        """
-        if not isinstance(self._client, botocore.client.BaseClient):
-            raise OutOfContextError(context_manager_name=self.__class__.__name__)
-
-        if object_md5sum is not None:
-            raise NotImplementedError("Md5 checking is not yet implemented.")
-
-        try:
-            _ = self._client.head_object(
-                Bucket=bucket_id,
-                Key=object_id,
-            )
-        except botocore.exceptions.ClientError:
-            return False
-
-        return True
-
     def copy_object(
         self,
         source_bucket_id: str,
@@ -303,7 +373,14 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         another bucket (`dest_bucket_id` and `dest_object_id`).
         """
         if not isinstance(self._client, botocore.client.BaseClient):
-            raise OutOfContextError(context_manager_name=self.__class__.__name__)
+            raise self._out_of_context_error
+
+        self._assert_object_exists(
+            bucket_id=source_bucket_id, object_id=source_object_id
+        )
+        self._assert_object_not_exists(
+            bucket_id=dest_bucket_id, object_id=dest_object_id
+        )
 
         try:
             copy_source = {
@@ -326,7 +403,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         You may also specify a custom expiry duration in seconds (`expires_after`).
         """
         if not isinstance(self._client, botocore.client.BaseClient):
-            raise OutOfContextError(context_manager_name=self.__class__.__name__)
+            raise self._out_of_context_error
+
+        self._assert_object_exists(bucket_id=bucket_id, object_id=object_id)
 
         try:
             self._client.delete_object(
