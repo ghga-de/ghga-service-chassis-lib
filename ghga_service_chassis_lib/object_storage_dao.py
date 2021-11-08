@@ -124,6 +124,9 @@ class ObjectStorageDao:
             - ObjectError, or derived exceptions:
                 - ObjectNotFoundError
                 - ObjectAlreadyExistsError
+    Please note, it is not required for an ObjectStorageDao to use the above errors.
+    So when using an implementation you cannot rely on above errors to be always raised
+    in the suitable situations.
     """
 
     # Connection/session teardown and setup should
