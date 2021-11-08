@@ -17,8 +17,10 @@
 Test S3 storage DAO
 """
 
+import pytest
 from testcontainers.localstack import LocalStackContainer
 
+from ghga_service_chassis_lib.object_storage_dao import BucketAlreadyExists
 from ghga_service_chassis_lib.s3 import ObjectStorageS3
 
 from .fixtures.s3 import (
@@ -101,4 +103,5 @@ def test_recreation_of_existing_bucket():
             endpoint_url=localstack.get_url(), credentials=TEST_CREDENTIALS
         ) as storage:
             storage.create_bucket(bucket_id)
-            storage.create_bucket(bucket_id)
+            with pytest.raises(BucketAlreadyExists):
+                storage.create_bucket(bucket_id)
