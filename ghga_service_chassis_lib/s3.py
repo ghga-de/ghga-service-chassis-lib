@@ -37,6 +37,7 @@ from .object_storage_dao import (
     ObjectStorageDao,
     ObjectStorageDaoError,
     OutOfContextError,
+    PresignedPostURL,
 )
 
 
@@ -209,15 +210,13 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             raise OutOfContextError(context_manager_name=self.__class__.__name__)
 
         try:
-            bucket = self._client.Bucket(Bucket=bucket_id)
-            bucket.objects.all().delete()
-            bucket.delete()
+            self._client.delete_bucket(Bucket=bucket_id)
         except botocore.exceptions.ClientError as error:
             raise _translate_s3_client_errors(error, bucket_id=bucket_id) from error
 
     def get_object_upload_url(
         self, bucket_id: str, object_id: str, expires_after: int = 86400
-    ) -> str:
+    ) -> PresignedPostURL:
         """Generates and returns an HTTP URL to upload a new file object with the given
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`).
@@ -242,7 +241,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
                 error, bucket_id=bucket_id, object_id=object_id
             ) from error
 
-        return presigned_url
+        return PresignedPostURL(
+            url=presigned_url["url"], fields=presigned_url["fields"]
+        )
 
     def get_object_download_url(
         self, bucket_id: str, object_id: str, expires_after: int = 86400

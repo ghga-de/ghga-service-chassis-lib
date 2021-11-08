@@ -1,0 +1,79 @@
+# Copyright 2021 Universität Tübingen, DKFZ and EMBL
+# for the German Human Genome-Phenome Archive (GHGA)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Test S3 storage DAO
+"""
+
+from ghga_service_chassis_lib.s3 import ObjectStorageS3
+
+from .fixtures.s3 import (
+    TEST_CREDENTIALS,
+    download_and_check_test_file,
+    upload_test_file,
+)
+
+
+def test_complete_workflow():
+    """
+    Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
+    """
+    bucket1_id = "mytestbucket1"
+    bucket2_id = "mytestbucket2"
+    object_id = "mytestfile"
+
+    with ObjectStorageS3(
+        endpoint_url="http://s3-localstack:4566", credentials=TEST_CREDENTIALS
+    ) as storage:
+        # create a new bucket:
+        storage.create_bucket(bucket1_id)
+
+        # upload a test file to that bucket
+        upload_url = storage.get_object_upload_url(
+            bucket_id=bucket1_id, object_id=object_id
+        )
+        upload_test_file(upload_url)
+
+        # check if file can be found:
+        assert storage.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
+
+        # download the file from the first bucket:
+        download_url1 = storage.get_object_download_url(
+            bucket_id=bucket1_id, object_id=object_id
+        )
+        download_and_check_test_file(download_url1)
+
+        # create a second bucket and move (copy & delete) the file there:
+        storage.create_bucket(bucket2_id)
+        storage.copy_object(
+            source_bucket_id=bucket1_id,
+            source_object_id=object_id,
+            dest_bucket_id=bucket2_id,
+            dest_object_id=object_id,
+        )
+        storage.delete_object(bucket_id=bucket1_id, object_id=object_id)
+
+        # confirm that file is not longer found in bucket1 but in bucket 2:
+        assert not storage.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
+        assert storage.does_object_exist(bucket_id=bucket2_id, object_id=object_id)
+
+        # delete bucket 1:
+        storage.delete_bucket(bucket1_id)
+
+        # download the file from the second bucket:
+        download_url2 = storage.get_object_download_url(
+            bucket_id=bucket2_id, object_id=object_id
+        )
+        download_and_check_test_file(download_url2)

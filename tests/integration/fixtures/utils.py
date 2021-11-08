@@ -15,9 +15,11 @@
 
 """Uitls for Fixture handling"""
 
+import hashlib
 import signal
 import socket
 from contextlib import closing
+from pathlib import Path
 from typing import Callable
 
 
@@ -57,3 +59,12 @@ def set_timeout(sec: int):
         return func_wrapper
 
     return timeout
+
+
+def calc_md5(file_path: Path) -> str:
+    """
+    Calc the md5 checksum for the specified file.
+    """  # nosec
+    with open(file_path, "rb") as file:
+        file_content = file.read()
+        return hashlib.md5(file_content).hexdigest()

@@ -12,6 +12,18 @@ jobs:
         ports:
           - 5672:5672
           - 15672:15672
+      s3-localstack:
+        image: localstack/localstack
+        ports:
+          - "4566:4566"
+        env:
+          SERVICES: s3
+          DEFAULT_REGION: eu-west-1
+          AWS_DEFAULT_REGION: eu-west-1
+          HOSTNAME_EXTERNAL: localhost # accessible at localhost
+          USE_SSL: false
+          DATA_DIR: /tmp/localstack/data
+          DEBUG: 1
 
     steps:
       - uses: actions/checkout@v1

@@ -19,6 +19,7 @@ with file objects along with some specific implementations
 of that DAO.
 """
 
+from dataclasses import dataclass
 from typing import Optional
 
 
@@ -94,6 +95,15 @@ class FileObjectAlreadyExists(FileObjectError):
         super().__init__(message)
 
 
+@dataclass
+class PresignedPostURL:
+    """Container for presigned POST URLs along with additional metadata fields that
+    should be attached as body data when sending the POST request."""
+
+    url: str
+    fields: dict
+
+
 class ObjectStorageDao:
     """
     A DAO base class for interacting with file objects.
@@ -143,7 +153,7 @@ class ObjectStorageDao:
 
     def get_object_upload_url(
         self, bucket_id: str, object_id: str, expires_after: int = 86400
-    ) -> str:
+    ) -> PresignedPostURL:
         """Generates and returns an HTTP URL to upload a new file object with the given
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`).
