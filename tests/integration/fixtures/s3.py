@@ -29,7 +29,7 @@ from .utils import calc_md5, generate_random_numeric_string
 
 TEST_CREDENTIALS = S3Credentials(aws_access_key_id="test", aws_secret_access_key="test")
 
-TEST_FILE_PATH = BASE_DIR / "test_file.txt"
+TEST_FILE_PATH = BASE_DIR / "test_file.yaml"
 TEST_FILE_MD5 = calc_md5(TEST_FILE_PATH)
 
 
