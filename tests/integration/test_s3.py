@@ -25,6 +25,7 @@ from ghga_service_chassis_lib.object_storage_dao import (
     BucketNotFoundError,
     ObjectAlreadyExistsError,
     ObjectNotFoundError,
+    ObjectStorageDao,
 )
 from ghga_service_chassis_lib.s3 import ObjectStorageS3
 
@@ -36,69 +37,80 @@ from .fixtures.s3 import (
 )
 
 
+# This workflow is defined as a seperate function so that it can also be used
+# outside of the `tests` package:
+def typical_workflow(
+    storage_client: ObjectStorageDao,
+    bucket1_id: str = "mytestbucket1",
+    bucket2_id: str = "mytestbucket2",
+    object_id: str = "mytestfile",
+):
+    """
+    Run a typical workflow of basic object operations using a S3 service.
+    """
+    print("Run a workflow for testing basic object operations using a S3 service:")
+
+    print(f" - create new bucket {bucket1_id}")
+    storage_client.create_bucket(bucket1_id)
+
+    print(" - confirm bucket creation")
+    assert storage_client.does_bucket_exist(bucket1_id)
+
+    print(f" - upload test object {object_id} to bucket")
+    upload_url = storage_client.get_object_upload_url(
+        bucket_id=bucket1_id, object_id=object_id
+    )
+    upload_test_file(upload_url)
+
+    print(" - confirm object upload")
+    assert storage_client.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
+
+    print(" - download and check object")
+    download_url1 = storage_client.get_object_download_url(
+        bucket_id=bucket1_id, object_id=object_id
+    )
+    download_and_check_test_file(download_url1)
+
+    print(f" - create a second bucket {bucket2_id} and move the object there")
+    storage_client.create_bucket(bucket2_id)
+    storage_client.copy_object(
+        source_bucket_id=bucket1_id,
+        source_object_id=object_id,
+        dest_bucket_id=bucket2_id,
+        dest_object_id=object_id,
+    )
+    storage_client.delete_object(bucket_id=bucket1_id, object_id=object_id)
+
+    print(" - confirm move")
+    assert not storage_client.does_object_exist(
+        bucket_id=bucket1_id, object_id=object_id
+    )
+    assert storage_client.does_object_exist(bucket_id=bucket2_id, object_id=object_id)
+
+    print(f" - delete bucket {bucket1_id}")
+    storage_client.delete_bucket(bucket1_id)
+
+    print(" - confirm bucket deletion")
+    assert not storage_client.does_bucket_exist(bucket1_id)
+
+    print(f" - download object from bucket {bucket2_id}")
+    download_url2 = storage_client.get_object_download_url(
+        bucket_id=bucket2_id, object_id=object_id
+    )
+    download_and_check_test_file(download_url2)
+
+    print("Done.")
+
+
 def test_typical_workflow():
     """
     Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
     """
-    bucket1_id = "mytestbucket1"
-    bucket2_id = "mytestbucket2"
-    object_id = "mytestfile"
-
     with LocalStackContainer().with_services("s3") as localstack:
         with ObjectStorageS3(
             endpoint_url=localstack.get_url(), credentials=TEST_CREDENTIALS
         ) as storage:
-            # confirm that no bucket with the specified id can be found:
-            assert not storage.does_bucket_exist(bucket1_id)
-
-            # create a new bucket:
-            storage.create_bucket(bucket1_id)
-
-            # confirm that bucket can be found:
-            assert storage.does_bucket_exist(bucket1_id)
-
-            # upload a test file to that bucket
-            upload_url = storage.get_object_upload_url(
-                bucket_id=bucket1_id, object_id=object_id
-            )
-            upload_test_file(upload_url)
-
-            # confirm that file can be found:
-            assert storage.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
-
-            # download the file from the first bucket:
-            download_url1 = storage.get_object_download_url(
-                bucket_id=bucket1_id, object_id=object_id
-            )
-            download_and_check_test_file(download_url1)
-
-            # create a second bucket and move (copy & delete) the file there:
-            storage.create_bucket(bucket2_id)
-            storage.copy_object(
-                source_bucket_id=bucket1_id,
-                source_object_id=object_id,
-                dest_bucket_id=bucket2_id,
-                dest_object_id=object_id,
-            )
-            storage.delete_object(bucket_id=bucket1_id, object_id=object_id)
-
-            # confirm that file is not longer found in bucket1 but in bucket 2:
-            assert not storage.does_object_exist(
-                bucket_id=bucket1_id, object_id=object_id
-            )
-            assert storage.does_object_exist(bucket_id=bucket2_id, object_id=object_id)
-
-            # delete bucket 1:
-            storage.delete_bucket(bucket1_id)
-
-            # confirm deletion of bucket 1:
-            assert not storage.does_bucket_exist(bucket1_id)
-
-            # download the file from the second bucket:
-            download_url2 = storage.get_object_download_url(
-                bucket_id=bucket2_id, object_id=object_id
-            )
-            download_and_check_test_file(download_url2)
+            typical_workflow(storage)
 
 
 def test_object_and_bucket_collisions():
