@@ -293,14 +293,22 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
     def _assert_object_exists(self, bucket_id: str, object_id: str) -> None:
         """Checks if the file with specified ID (`object_id`) exists in the bucket with
         the specified ID (`bucket_id`) and throws an ObjectNotFoundError otherwise.
+        If the bucket does not exist it throws a BucketNotFoundError.
         """
+        # first check if bucket exists:
+        self._assert_bucket_exists(bucket_id)
+
         if not self.does_object_exist(bucket_id=bucket_id, object_id=object_id):
             raise ObjectNotFoundError(bucket_id=bucket_id, object_id=object_id)
 
     def _assert_object_not_exists(self, bucket_id: str, object_id: str) -> None:
         """Checks if the file with specified ID (`object_id`) exists in the bucket with
         the specified ID (`bucket_id`). If so, it throws an ObjectAlreadyExistsError otherwise.
+        If the bucket does not exist it throws a BucketNotFoundError.
         """
+        # first check if bucket exists:
+        self._assert_bucket_exists(bucket_id)
+
         if self.does_object_exist(bucket_id=bucket_id, object_id=object_id):
             raise ObjectAlreadyExistsError(bucket_id=bucket_id, object_id=object_id)
 

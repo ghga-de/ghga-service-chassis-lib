@@ -17,14 +17,15 @@
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Tuple
 
 import requests
 
 from ghga_service_chassis_lib.object_storage_dao import PresignedPostURL
-from ghga_service_chassis_lib.s3 import S3Credentials
+from ghga_service_chassis_lib.s3 import ObjectStorageS3, S3Credentials
 
 from . import BASE_DIR
-from .utils import calc_md5
+from .utils import calc_md5, generate_random_numeric_string
 
 TEST_CREDENTIALS = S3Credentials(aws_access_key_id="test", aws_secret_access_key="test")
 
@@ -57,3 +58,23 @@ def download_and_check_test_file(presigned_url: str):
         assert (
             calc_md5(temp_file_path) == TEST_FILE_MD5
         ), "downloaded file has unexpected md5 checksum"
+
+
+def create_existing_object_and_bucket(
+    storage_client: ObjectStorageS3,
+) -> Tuple[str, str]:
+    """
+    Creates a bucket as well as a contained object and returns the bucket and object id.
+    """
+    # generate random bucket and object ids
+    bucket_id = "myexistingbucket" + generate_random_numeric_string()
+    object_id = "myexistingobject" + generate_random_numeric_string()
+
+    # create bucket and upload file:
+    storage_client.create_bucket(bucket_id)
+    upload_url = storage_client.get_object_upload_url(
+        bucket_id=bucket_id, object_id=object_id
+    )
+    upload_test_file(upload_url)
+
+    return bucket_id, object_id
