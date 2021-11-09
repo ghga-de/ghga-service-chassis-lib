@@ -91,6 +91,9 @@ def test_typical_workflow():
             # delete bucket 1:
             storage.delete_bucket(bucket1_id)
 
+            # confirm deletion of bucket 1:
+            assert not storage.does_bucket_exist(bucket1_id)
+
             # download the file from the second bucket:
             download_url2 = storage.get_object_download_url(
                 bucket_id=bucket2_id, object_id=object_id

@@ -263,6 +263,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             bucket = self._resource.Bucket(bucket_id)
             if delete_content:
                 bucket.objects.all().delete()
+            bucket.delete()
         except botocore.exceptions.ClientError as error:
             raise _translate_s3_client_errors(error, bucket_id=bucket_id) from error
 
