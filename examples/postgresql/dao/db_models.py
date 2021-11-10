@@ -15,12 +15,11 @@
 
 """Definition of SQL ORM classes"""
 
-from typing import Any
-
 from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm.decl_api import DeclarativeMeta
 
-Base: Any = declarative_base()
+Base: DeclarativeMeta = declarative_base()
 
 
 class ToDoItem(Base):

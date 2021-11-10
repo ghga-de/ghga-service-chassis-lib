@@ -25,7 +25,7 @@ from .dao.db_models import Base
 
 
 def create_db(db_url: str):
-    "creates the database it it doesn't exist"
+    "creates the database if it doesn't exist"
     if not database_exists(db_url):
         create_database(db_url)
 
