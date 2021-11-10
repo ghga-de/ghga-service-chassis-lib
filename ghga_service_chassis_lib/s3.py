@@ -122,7 +122,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         credentials: S3Credentials,
         service_name: str = "s3",
         aws_config_ini: Optional[Path] = None,
-        max_upload_size: Optional[int] = None,
+        max_upload_size: Optional[int] = 10000,
     ):
         """Initialize with parameters needed to connect to the S3 storage
 
@@ -314,7 +314,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             raise ObjectAlreadyExistsError(bucket_id=bucket_id, object_id=object_id)
 
     def get_object_upload_url(
-        self, bucket_id: str, object_id: str, expires_after: int = 3600
+        self, bucket_id: str, object_id: str, expires_after: int = 86400
     ) -> PresignedPostURL:
         """Generates and returns an HTTP URL to upload a new file object with the given
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
@@ -325,16 +325,16 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
         self._assert_object_not_exists(bucket_id=bucket_id, object_id=object_id)
 
-        # conditions = [
-        #     # set upload size limit:
-        #     ["content-length-range", 0, self.max_upload_size],
-        # ]
+        conditions = [
+            # set upload size limit:
+            ["content-length-range", 0, self.max_upload_size],
+        ]
 
         try:
             presigned_url = self._client.generate_presigned_post(
                 Bucket=bucket_id,
                 Key=object_id,
-                # Conditions=conditions,
+                Conditions=conditions,
                 ExpiresIn=expires_after,
             )
         except botocore.exceptions.ClientError as error:
