@@ -314,7 +314,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             raise ObjectAlreadyExistsError(bucket_id=bucket_id, object_id=object_id)
 
     def get_object_upload_url(
-        self, bucket_id: str, object_id: str, expires_after: int = 86400
+        self, bucket_id: str, object_id: str, expires_after: int = 3600
     ) -> PresignedPostURL:
         """Generates and returns an HTTP URL to upload a new file object with the given
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
