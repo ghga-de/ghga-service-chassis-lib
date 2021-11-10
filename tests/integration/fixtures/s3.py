@@ -37,8 +37,9 @@ def upload_test_file(presigned_url: PresignedPostURL):
     """Uploads the test file to the specified URL"""
     with open(TEST_FILE_PATH, "rb") as test_file:
         files = {"file": (str(TEST_FILE_PATH), test_file)}
+        headers = {"ContentMD5": TEST_FILE_MD5}
         response = requests.post(
-            presigned_url.url, data=presigned_url.fields, files=files
+            presigned_url.url, data=presigned_url.fields, files=files, headers=headers
         )
         response.raise_for_status()
 
