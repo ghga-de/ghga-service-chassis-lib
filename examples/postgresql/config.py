@@ -15,14 +15,22 @@
 
 """Config parameters for this package."""
 
-from ghga_service_chassis_lib.postgresql import PostgresqlBaseConfig
+from ghga_service_chassis_lib.api import ApiConfigBase
+from ghga_service_chassis_lib.config import config_from_yaml
+from ghga_service_chassis_lib.postgresql import PostgresqlConfigBase
 
+# The db url is hard coded in this example.
+# In a production application, this would come from an env variable or
+# a config yaml.
+DB_URL = "postgresql://postgres:postgres@postgresql/todo"
 
-class Config(PostgresqlBaseConfig):
+# You may inherit from multiple config base classes:
+@config_from_yaml(prefix="my_postgres_demo")
+class Config(ApiConfigBase, PostgresqlConfigBase):
     """Config Parameters"""
 
-    an_additional_param: str
-    another_additional_param: int
+    an_additional_param: str = "some value"
+    another_additional_param: int = 37
 
 
-config = Config()
+config = Config(db_url=DB_URL)

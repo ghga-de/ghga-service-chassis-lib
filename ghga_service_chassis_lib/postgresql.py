@@ -17,10 +17,14 @@
 This module contains functionalities that simplifies the connection to SQL databases.
 """
 
+from contextlib import asynccontextmanager
+
 from pydantic import BaseSettings, validator
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 
-class PostgresqlBaseConfig(BaseSettings):
+class PostgresqlConfigBase(BaseSettings):
     """A base class with Postrgesql-specific config params.
     Inherit your config class from this class if you need
     PostgreSQL in the backend."""
@@ -36,3 +40,45 @@ class PostgresqlBaseConfig(BaseSettings):
         if not value.startswith("postgresql://"):
             raise ValueError(f"must start with '{prefix}'")
         return value
+
+
+class PostgresqlConnector:
+    """A class for dealing with connections to postgresql."""
+
+    def __init__(self, config: PostgresqlConfigBase):
+        """Initialize Connector.
+
+        Args:
+            config (PostgresqlConfigBase): Configs including the DB url.
+        """
+        self._configs = config
+        self.db_url = config.db_url
+
+        # change url prefix to use the asyncpg driver:
+        self.db_url_async = config.db_url.replace(
+            "postgresql://", "postgresql+asyncpg://"
+        )
+
+        self.engine = create_async_engine(self.db_url_async)
+        self.sessionmaker = sessionmaker(
+            self.engine, class_=AsyncSession, expire_on_commit=False
+        )
+
+    @asynccontextmanager
+    async def transactional_session(self) -> AsyncSession:
+        """
+        Returns a session object that can be used as a context manager.
+        It will automatically commit when leaving the context as long
+        as no errors occur.
+        """
+        session = self.sessionmaker()
+        await session.begin()
+        try:
+            yield session
+        except:
+            await session.rollback()
+            raise
+        else:
+            await session.commit()
+        finally:
+            await session.close()

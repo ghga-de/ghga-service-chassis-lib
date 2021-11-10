@@ -17,15 +17,17 @@
 
 import asyncio
 
-from .db import add_todos, print_all_todos, reset_db
+from .config import config
+from .db import add_todos, print_all_todos
+from .setup_db import setup_db
 
 
 async def main():
     """main function handed to the event loop"""
-    await reset_db()
     await add_todos()
     await print_all_todos()
 
 
 if __name__ == "__main__":
+    setup_db(config.db_url)
     asyncio.run(main())

@@ -17,29 +17,14 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.future import select
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy_utils import create_database, database_exists
 
-from .db_models import Base, ToDoItem
+from ghga_service_chassis_lib.postgresql import PostgresqlConnector
 
-DB_URL = "postgresql+asyncpg://postgres:postgres@postgresql/todo"
-DB_URL_ = "postgresql://postgres:postgres@postgresql/todo"
+from .config import config
+from .db_models import ToDoItem
 
-if not database_exists(DB_URL_):
-    create_database(DB_URL_)
-
-engine = create_async_engine(DB_URL)
-
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-async def reset_db():
-    """Drop and re-create all tables."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+postgres = PostgresqlConnector(config)
 
 
 async def add_todos():
@@ -51,16 +36,15 @@ async def add_todos():
             title="groceries", description="Buy eggs and bacon", due_date=tomorrow
         ),
     ]
-
-    async with async_session() as session:
+    async with postgres.transactional_session() as session:
         for my_todo in my_todos:
             session.add(my_todo)
-        await session.commit()
 
 
 async def print_all_todos():
     """print all todo items"""
-    async with async_session() as session:
+    print("ToDo List:")
+    async with postgres.transactional_session() as session:
         query = await session.execute(select(ToDoItem).order_by(ToDoItem.id))
     for item in query.scalars().all():
         print(f" - {item.title}: {item.description} until {item.due_date}")
