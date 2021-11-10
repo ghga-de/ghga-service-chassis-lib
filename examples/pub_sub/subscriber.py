@@ -35,7 +35,7 @@ def run():
     """Runs a subscribing process."""
 
     # read json schema:
-    with open(HERE / "message_schema.json", "r") as schema_file:
+    with open(HERE / "message_schema.json", "r", encoding="utf8") as schema_file:
         message_schema = json.load(schema_file)
 
     # create a topic object:
