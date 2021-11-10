@@ -13,32 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-"""
-Example to show, how we can establish a connection and insert data to the database
-"""
+"""package entrypoint"""
 
 import asyncio
 
-from ghga_service_chassis_lib.mongo_connect import DBConnect
-
-DB_URL = "mongodb://mongo_db:27017"
-DB_NAME = "example"
+from .db import add_todos, print_all_todos, reset_db
 
 
 async def main():
-
-    """Small example of how to connect to a mongodb database"""
-    db_connect = DBConnect(DB_URL, DB_NAME)
-    collection = await db_connect.get_collection("example_collection")
-    await collection.delete_many({})
-    await collection.insert_one({"id": "key", "value": 0})
-    key_value = await collection.count_documents({})
-
-    # This should be one
-    print(f"Insterted {key_value} documents into the database.")
-    await collection.delete_many({})
-    await db_connect.close_db()
+    """main function handed to the event loop"""
+    await reset_db()
+    await add_todos()
+    await print_all_todos()
 
 
 if __name__ == "__main__":

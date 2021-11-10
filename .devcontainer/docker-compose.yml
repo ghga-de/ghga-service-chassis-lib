@@ -31,7 +31,7 @@ services:
       - 5672:5672
       - 15672:15672
 
-  db:
+  mongo_db:
     image: mongo:4.4.6
     restart: unless-stopped
     volumes:
@@ -62,6 +62,17 @@ services:
         volume:
           nocopy: true
 
+  postgresql:
+    image: postgres:latest
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+
 volumes:
   mongodb-data: {}
   s3_fs: {}
+  postgres-data: {}
