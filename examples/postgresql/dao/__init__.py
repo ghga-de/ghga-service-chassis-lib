@@ -12,22 +12,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""package entrypoint"""
-
-import asyncio
-
-from .config import config
-from .core import add_some_todos, print_all_todos
-from .setup_db import setup_db
-
-
-async def main():
-    """main function handed to the event loop"""
-    await add_some_todos()
-    await print_all_todos()
-
-
-if __name__ == "__main__":
-    setup_db(config.db_url)
-    asyncio.run(main())

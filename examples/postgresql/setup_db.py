@@ -21,7 +21,7 @@ migration tool like alembic should be used instead.
 from sqlalchemy import create_engine
 from sqlalchemy_utils import create_database, database_exists
 
-from .db_models import Base
+from .dao.db_models import Base
 
 
 def create_db(db_url: str):

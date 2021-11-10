@@ -13,21 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""package entrypoint"""
+"""Defines dataclasses for holding business-logic data"""
 
-import asyncio
+from datetime import datetime
 
-from .config import config
-from .core import add_some_todos, print_all_todos
-from .setup_db import setup_db
+from pydantic import BaseModel
 
 
-async def main():
-    """main function handed to the event loop"""
-    await add_some_todos()
-    await print_all_todos()
+class ToDoItem(BaseModel):
+    """A ToDoItem"""
 
-
-if __name__ == "__main__":
-    setup_db(config.db_url)
-    asyncio.run(main())
+    title: str
+    description: str
+    due_date: datetime

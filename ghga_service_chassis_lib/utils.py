@@ -13,21 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""package entrypoint"""
-
-import asyncio
-
-from .config import config
-from .core import add_some_todos, print_all_todos
-from .setup_db import setup_db
+"""General utilities that don't require heavy dependencies."""
 
 
-async def main():
-    """main function handed to the event loop"""
-    await add_some_todos()
-    await print_all_todos()
+class DaoGenericBase:
+    """A generic base for implementing DAO interfaces."""
 
+    # Every DAO must support the context manager protocol.
+    # However, it is up to the DAO implementation whether
+    # the `__enter__` and `__exit__` functions are doing
+    # something useful. They may remain stubs:
 
-if __name__ == "__main__":
-    setup_db(config.db_url)
-    asyncio.run(main())
+    def __enter__(self):
+        """Setup logic."""
+        ...
+        return self
+
+    def __exit__(self, err_type, err_value, err_traceback):
+        """Teardown logic."""
+        ...
