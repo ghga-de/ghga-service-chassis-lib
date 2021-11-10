@@ -67,6 +67,9 @@ confidence=
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable=
+      duplicate-code, # is behaving strangely sometimes and cannot
+                     # be disabled on an individual basis:
+                     # https://github.com/PyCQA/pylint/issues/214
       too-few-public-methods # says that classes should always have methods
                              # but that is not true anymore (e.g. dataclasses)
 

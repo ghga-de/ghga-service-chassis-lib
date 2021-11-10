@@ -13,11 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Uitls for Fixture handling"""
+"""Utils for Fixture handling"""
 
+import hashlib
+import random
 import signal
 import socket
 from contextlib import closing
+from pathlib import Path
 from typing import Callable
 
 
@@ -57,3 +60,17 @@ def set_timeout(sec: int):
         return func_wrapper
 
     return timeout
+
+
+def calc_md5(file_path: Path) -> str:
+    """
+    Calc the md5 checksum for the specified file.
+    """  # nosec
+    with open(file_path, "rb") as file:
+        file_content = file.read()
+        return hashlib.md5(file_content).hexdigest()
+
+
+def generate_random_numeric_string(length: int = 10):
+    """Generate a random numeric string with specified length."""
+    return "".join([str(random.choice(range(1, 10))) for i in range(0, length)])
