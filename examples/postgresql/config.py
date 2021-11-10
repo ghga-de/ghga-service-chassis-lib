@@ -12,3 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""Config parameters for this package."""
+
+from ghga_service_chassis_lib.postgresql import PostgresqlBaseConfig
+
+
+class Config(PostgresqlBaseConfig):
+    """Config Parameters"""
+
+    an_additional_param: str
+    another_additional_param: int
+
+
+config = Config()

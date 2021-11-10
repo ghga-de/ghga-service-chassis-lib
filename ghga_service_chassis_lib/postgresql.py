@@ -17,18 +17,22 @@
 This module contains functionalities that simplifies the connection to SQL databases.
 """
 
-import os
+from pydantic import BaseSettings, validator
 
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 
-# adapted once config parsing is implemented
-SQLALCHEMY_DATABASE_URL = os.getenv("DB_URL")
+class PostgresqlBaseConfig(BaseSettings):
+    """A base class with Postrgesql-specific config params.
+    Inherit your config class from this class if you need
+    PostgreSQL in the backend."""
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db_url: str
+    db_print_logs: bool = False
 
-Base = declarative_base()
+    # pylint: disable=no-self-argument,no-self-use
+    @validator("db_url")
+    def db_url_prefix(cls, value: str):
+        """Checks if db_url is a valid postgres URL."""
+        prefix = "postgresql://"
+        if not value.startswith("postgresql://"):
+            raise ValueError(f"must start with '{prefix}'")
+        return value
