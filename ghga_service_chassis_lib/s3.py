@@ -325,16 +325,16 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
         self._assert_object_not_exists(bucket_id=bucket_id, object_id=object_id)
 
-        conditions = [
-            # set upload size limit:
-            ["content-length-range", 0, self.max_upload_size],
-        ]
+        # conditions = [
+        #     # set upload size limit:
+        #     ["content-length-range", 0, self.max_upload_size],
+        # ]
 
         try:
             presigned_url = self._client.generate_presigned_post(
                 Bucket=bucket_id,
                 Key=object_id,
-                Conditions=conditions,
+                # Conditions=conditions,
                 ExpiresIn=expires_after,
             )
         except botocore.exceptions.ClientError as error:
