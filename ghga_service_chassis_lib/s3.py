@@ -122,7 +122,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         credentials: S3Credentials,
         service_name: str = "s3",
         aws_config_ini: Optional[Path] = None,
-        max_upload_size: Optional[int] = 1000000000,
+        max_upload_size: Optional[int] = None,
     ):
         """Initialize with parameters needed to connect to the S3 storage
 
