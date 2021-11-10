@@ -325,10 +325,14 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
         self._assert_object_not_exists(bucket_id=bucket_id, object_id=object_id)
 
-        conditions = [
-            # set upload size limit:
-            ["content-length-range", 0, self.max_upload_size],
-        ]
+        conditions = (
+            []
+            if self.max_upload_size is None
+            else [
+                # set upload size limit:
+                ["content-length-range", 0, self.max_upload_size],
+            ]
+        )
 
         try:
             presigned_url = self._client.generate_presigned_post(
