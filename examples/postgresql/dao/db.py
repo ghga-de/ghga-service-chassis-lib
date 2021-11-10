@@ -19,14 +19,14 @@ from typing import List
 
 from sqlalchemy.future import select
 
-from ghga_service_chassis_lib.postgresql import PostgresqlConnector
+from ghga_service_chassis_lib.postgresql import AsyncPostgresqlConnector
 from ghga_service_chassis_lib.utils import DaoGenericBase
 
 from .. import models
 from ..config import config
 from . import db_models
 
-psql_connector = PostgresqlConnector(config)
+psql_connector = AsyncPostgresqlConnector(config)
 
 # Since this is just a DAO stub without implementation,
 # following pylint error are expected:
