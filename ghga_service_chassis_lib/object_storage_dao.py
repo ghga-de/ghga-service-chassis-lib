@@ -169,11 +169,16 @@ class ObjectStorageDao:
         raise NotImplementedError()
 
     def get_object_upload_url(
-        self, bucket_id: str, object_id: str, expires_after: int = 86400
+        self,
+        bucket_id: str,
+        object_id: str,
+        expires_after: int = 86400,
+        max_upload_size: Optional[int] = None,
     ) -> PresignedPostURL:
         """Generates and returns an HTTP URL to upload a new file object with the given
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
-        You may also specify a custom expiry duration in seconds (`expires_after`).
+        You may also specify a custom expiry duration in seconds (`expires_after`) and
+        a maximum size (bytes) for uploads (`max_upload_size`).
         """
         raise NotImplementedError()
 

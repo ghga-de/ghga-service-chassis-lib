@@ -122,7 +122,6 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         credentials: S3Credentials,
         service_name: str = "s3",
         aws_config_ini: Optional[Path] = None,
-        max_upload_size: Optional[int] = None,
     ):
         """Initialize with parameters needed to connect to the S3 storage
 
@@ -140,14 +139,11 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
                 This should follow the format described here:
                 https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-a-configuration-file
                 Defaults to None.
-            max_upload_size (Optional[int], optional):
-                Size limit for object uploads in bytes. Defaults to None (= no limit).
 
         """
         self.endpoint_url = endpoint_url
         self.service_name = service_name
         self.aws_config_ini = aws_config_ini
-        self.max_upload_size = max_upload_size
 
         self._credentials = credentials
         self._advanced_config = (
@@ -166,8 +162,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             + f"endpoint_url={self.endpoint_url}, "
             # credentials are missing on purpose
             + f"service_name={self.service_name}, "
-            + f"aws_config_ini={self.aws_config_ini}, "
-            + f"max_upload_size={self.max_upload_size}"
+            + f"aws_config_ini={self.aws_config_ini}"
             + ")"
         )
 
@@ -314,11 +309,16 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             raise ObjectAlreadyExistsError(bucket_id=bucket_id, object_id=object_id)
 
     def get_object_upload_url(
-        self, bucket_id: str, object_id: str, expires_after: int = 86400
+        self,
+        bucket_id: str,
+        object_id: str,
+        expires_after: int = 86400,
+        max_upload_size: Optional[int] = None,
     ) -> PresignedPostURL:
         """Generates and returns an HTTP URL to upload a new file object with the given
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
-        You may also specify a custom expiry duration in seconds (`expires_after`).
+        You may also specify a custom expiry duration in seconds (`expires_after`) and
+        a maximum size (bytes) for uploads (`max_upload_size`).
         """
         if not isinstance(self._client, botocore.client.BaseClient):
             raise self._out_of_context_error
@@ -327,10 +327,10 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
         conditions = (
             []
-            if self.max_upload_size is None
+            if max_upload_size is None
             else [
                 # set upload size limit:
-                ["content-length-range", 0, self.max_upload_size],
+                ["content-length-range", 0, max_upload_size],
             ]
         )
 
