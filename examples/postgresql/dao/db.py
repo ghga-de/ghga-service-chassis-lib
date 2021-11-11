@@ -53,6 +53,7 @@ class PostgresDatabase(DatabaseDao):
     def __init__(self):
         """initialze DAO implementation"""
         # will be defined on __enter__:
+        super().__init__()
         self._session_cm = None
         self._session = None
 
@@ -93,7 +94,3 @@ class PostgresDatabase(DatabaseDao):
         ]
 
         return items
-
-
-# here you choose the DatabaseDAO to use:
-Database = PostgresDatabase

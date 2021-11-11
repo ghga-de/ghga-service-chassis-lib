@@ -12,3 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""This sub-package collects any Data Access Object pattern-related code"""
+
+# forward imports for usage outside of the `dao` subpackage:
+from .db import PostgresDatabase as Database  # noqa: F401 (unused import)

@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 import typer
 
 from . import models
-from .dao.db import Database
+from .dao import Database
 
 
 async def add_some_todos():
