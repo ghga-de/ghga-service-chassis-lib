@@ -27,7 +27,7 @@ from typing import List
 import typer
 
 from ghga_service_chassis_lib.object_storage_dao import ObjectStorageDao
-from ghga_service_chassis_lib.s3 import ObjectStorageS3, S3Credentials
+from ghga_service_chassis_lib.s3 import ObjectStorageS3, S3ConfigBase
 from tests.integration.test_s3 import typical_workflow
 
 
@@ -48,20 +48,22 @@ def cleanup_buckets_and_objects(
 
 
 def test_workflow(  # pylint: disable=too-many-arguments
-    endpoint_url: str,
-    aws_access_key_id: str,
-    aws_secret_access_key: str,
+    s3_endpoint_url: str,
+    s3_access_key_id: str,
+    s3_secret_access_key: str,
     bucket1_id: str = "mytestbucket1",
     bucket2_id: str = "mytestbucket2",
     object_id: str = "mytestfile",
 ):
     """Run a workflow for testing basic object operations using a S3 service."""
 
-    credentials = S3Credentials(
-        aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key
+    config = S3ConfigBase(
+        s3_endpoint_url=s3_endpoint_url,
+        s3_access_key_id=s3_access_key_id,
+        s3_secret_access_key=s3_secret_access_key,
     )
 
-    with ObjectStorageS3(endpoint_url=endpoint_url, credentials=credentials) as storage:
+    with ObjectStorageS3(config) as storage:
         cleanup_buckets_and_objects(
             storage_client=storage,
             bucket_ids=[bucket1_id, bucket2_id],

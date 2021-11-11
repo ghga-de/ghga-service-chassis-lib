@@ -17,7 +17,7 @@
 This modules contains logic for interacting with S3-compatible object storage.
 """
 
-from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -26,6 +26,7 @@ import botocore.client
 import botocore.config
 import botocore.configloader
 import botocore.exceptions
+from pydantic import BaseSettings
 
 from .object_storage_dao import (
     BucketAlreadyExists,
@@ -41,6 +42,37 @@ from .object_storage_dao import (
 )
 
 
+class S3ConfigBase(BaseSettings):
+    """A base class with S3-specific config params.
+    Inherit your config class from this class if you need
+    to talk to an S3 service in the backend.
+
+    Args:
+        s3_endpoint_url (str): The URL to the S3 endpoint.
+        s3_access_key_id (str):
+            Part of credentials for login into the S3 service. See:
+            https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
+        s3_secret_access_key (str):
+            Part of credentials for login into the S3 service. See:
+            https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
+        s3_session_token (Optional[str]):
+            Optional part of credentials for login into the S3 service. See:
+            https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
+        aws_config_ini (Optional[Path], optional):
+            Path to a config file for specifying more advanced S3 parameters.
+            This should follow the format described here:
+            https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-a-configuration-file
+            Defaults to None.
+    """
+
+    s3_endpoint_url: str
+    s3_access_key_id: str
+    s3_secret_access_key: str
+    s3_session_token: Optional[str] = None
+    aws_config_ini: Optional[Path] = None
+
+
+@lru_cache
 def read_aws_config_ini(aws_config_ini: Path) -> botocore.config.Config:
     """
     Reads an aws config ini (see:
@@ -92,15 +124,6 @@ def _translate_s3_client_errors(
     return exception
 
 
-@dataclass
-class S3Credentials:
-    """Container for credentials needed to connect to an (AWS) S3 service."""
-
-    aws_access_key_id: str
-    aws_secret_access_key: str
-    aws_session_token: Optional[str] = None
-
-
 class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-attributes
     """
     An implementation of the ObjectStorageDao interface for interacting specifically
@@ -118,10 +141,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        endpoint_url: str,
-        credentials: S3Credentials,
-        service_name: str = "s3",
-        aws_config_ini: Optional[Path] = None,
+        config: S3ConfigBase,
     ):
         """Initialize with parameters needed to connect to the S3 storage
 
@@ -130,26 +150,15 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client
 
         Args:
-            endpoint_url (str): The complete URL to use for the constructed client.
-            service_name (str, optional):
-                The name of a service, e.g. 's3' or 'ec2'.Defaults to "s3".
-            credentials (S3Credentials): Credentials for login into the S3 service.
-            aws_config_ini (Optional[Path], optional):
-                Path to a config file for specifying more advanced S3 parameters.
-                This should follow the format described here:
-                https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-a-configuration-file
-                Defaults to None.
-
+            config (S3ConfigBase): Config parameters specified using the S3ConfigBase model.
         """
-        self.endpoint_url = endpoint_url
-        self.service_name = service_name
-        self.aws_config_ini = aws_config_ini
+        self._config = config
+        self.endpoint_url = config.s3_endpoint_url
 
-        self._credentials = credentials
         self._advanced_config = (
             None
-            if self.aws_config_ini is None
-            else read_aws_config_ini(self.aws_config_ini)
+            if config.aws_config_ini is None
+            else read_aws_config_ini(config.aws_config_ini)
         )
 
         # will be set on __enter__:
@@ -157,33 +166,26 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         self._resource: Optional[botocore.client.BaseClient] = None
 
     def __repr__(self) -> str:
-        return (
-            "ObjectStorageS3("
-            + f"endpoint_url={self.endpoint_url}, "
-            # credentials are missing on purpose
-            + f"service_name={self.service_name}, "
-            + f"aws_config_ini={self.aws_config_ini}"
-            + ")"
-        )
+        return f"ObjectStorageS3(config=S3ConfigBase(s3_endpoint_url={self.endpoint_url}, ...))"
 
     def __enter__(self) -> ObjectStorageDao:
         """Setup storage connection/session."""
 
         self._client = boto3.client(
-            service_name=self.service_name,
+            service_name="s3",
             endpoint_url=self.endpoint_url,
-            aws_access_key_id=self._credentials.aws_access_key_id,
-            aws_secret_access_key=self._credentials.aws_secret_access_key,
-            aws_session_token=self._credentials.aws_session_token,
+            aws_access_key_id=self._config.s3_access_key_id,
+            aws_secret_access_key=self._config.s3_secret_access_key,
+            aws_session_token=self._config.s3_session_token,
             config=self._advanced_config,
         )
 
         self._resource = boto3.resource(
-            service_name=self.service_name,
+            service_name="s3",
             endpoint_url=self.endpoint_url,
-            aws_access_key_id=self._credentials.aws_access_key_id,
-            aws_secret_access_key=self._credentials.aws_secret_access_key,
-            aws_session_token=self._credentials.aws_session_token,
+            aws_access_key_id=self._config.s3_access_key_id,
+            aws_secret_access_key=self._config.s3_secret_access_key,
+            aws_session_token=self._config.s3_session_token,
             config=self._advanced_config,
         )
 

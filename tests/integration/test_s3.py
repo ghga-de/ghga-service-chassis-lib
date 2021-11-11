@@ -30,9 +30,9 @@ from ghga_service_chassis_lib.object_storage_dao import (
 from ghga_service_chassis_lib.s3 import ObjectStorageS3
 
 from .fixtures.s3 import (
-    TEST_CREDENTIALS,
     create_existing_object_and_bucket,
     download_and_check_test_file,
+    get_test_config,
     upload_test_file,
 )
 
@@ -107,9 +107,7 @@ def test_typical_workflow():
     Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
     """
     with LocalStackContainer().with_services("s3") as localstack:
-        with ObjectStorageS3(
-            endpoint_url=localstack.get_url(), credentials=TEST_CREDENTIALS
-        ) as storage:
+        with ObjectStorageS3(config=get_test_config(localstack.get_url())) as storage:
             typical_workflow(storage)
 
 
@@ -119,9 +117,7 @@ def test_object_and_bucket_collisions():
     """
 
     with LocalStackContainer().with_services("s3") as localstack:
-        with ObjectStorageS3(
-            endpoint_url=localstack.get_url(), credentials=TEST_CREDENTIALS
-        ) as storage:
+        with ObjectStorageS3(config=get_test_config(localstack.get_url())) as storage:
             existing_bucket_id, existing_object_id = create_existing_object_and_bucket(
                 storage
             )
@@ -151,9 +147,7 @@ def test_handling_non_existing_file_and_bucket():
     non_existing_object_id = "mynonexistingobject"
 
     with LocalStackContainer().with_services("s3") as localstack:
-        with ObjectStorageS3(
-            endpoint_url=localstack.get_url(), credentials=TEST_CREDENTIALS
-        ) as storage:
+        with ObjectStorageS3(config=get_test_config(localstack.get_url())) as storage:
             existing_bucket_id, existing_object_id = create_existing_object_and_bucket(
                 storage
             )
