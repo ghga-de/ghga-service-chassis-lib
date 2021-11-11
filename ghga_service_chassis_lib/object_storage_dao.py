@@ -22,6 +22,8 @@ of that DAO.
 from dataclasses import dataclass
 from typing import Optional
 
+from .utils import DaoGenericBase
+
 
 class ObjectStorageDaoError(RuntimeError):
     """Generic base exceptions for all error related to the DAO base class."""
@@ -110,7 +112,7 @@ class PresignedPostURL:
     fields: dict
 
 
-class ObjectStorageDao:
+class ObjectStorageDao(DaoGenericBase):
     """
     A DAO base class for interacting with file objects.
     Exceptions may include:
