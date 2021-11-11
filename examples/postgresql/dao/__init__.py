@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures for unit testing"""
+"""This sub-package collects any Data Access Object pattern-related code"""
 
-from pathlib import Path
-
-BASE_DIR = Path(__file__).parent.resolve()
+# forward imports for usage outside of the `dao` subpackage:
+from .db import PostgresDatabase as Database  # noqa: F401 (unused import)

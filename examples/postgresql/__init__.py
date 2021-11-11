@@ -13,8 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures for unit testing"""
-
-from pathlib import Path
-
-BASE_DIR = Path(__file__).parent.resolve()
+"""A package demonstrating the psql_connector feature of the ghga_service_chassis_lib"""

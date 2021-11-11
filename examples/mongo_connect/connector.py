@@ -22,7 +22,7 @@ import asyncio
 
 from ghga_service_chassis_lib.mongo_connect import DBConnect
 
-DB_URL = "mongodb://db:27017"
+DB_URL = "mongodb://mongo_db:27017"
 DB_NAME = "example"
 
 

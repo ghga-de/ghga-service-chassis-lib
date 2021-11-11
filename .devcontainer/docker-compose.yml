@@ -31,7 +31,7 @@ services:
       - 5672:5672
       - 15672:15672
 
-  db:
+  mongo_db:
     image: mongo:4.4.6
     restart: unless-stopped
     volumes:
@@ -42,5 +42,37 @@ services:
     ports:
       - 27017:27017
 
+  localstack:
+    image: localstack/localstack
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: eu-west-1
+      AWS_DEFAULT_REGION: eu-west-1
+      # accessible at localhost
+      HOSTNAME_EXTERNAL: localhost
+      USE_SSL: "false"
+      DATA_DIR: /tmp/localstack/data
+      DEBUG: 1
+    volumes:
+      - type: volume
+        source: s3_fs
+        target: /tmp/localstack
+        volume:
+          nocopy: true
+
+  postgresql:
+    image: postgres:latest
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+
 volumes:
-  mongodb-data:
+  mongodb-data: {}
+  s3_fs: {}
+  postgres-data: {}

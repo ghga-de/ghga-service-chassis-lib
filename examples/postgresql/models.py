@@ -13,8 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures for unit testing"""
+"""Defines dataclasses for holding business-logic data"""
 
-from pathlib import Path
+from datetime import datetime
 
-BASE_DIR = Path(__file__).parent.resolve()
+from pydantic import BaseModel
+
+
+class ToDoItem(BaseModel):
+    """A ToDoItem"""
+
+    title: str
+    description: str
+    due_date: datetime
