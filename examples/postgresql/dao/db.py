@@ -20,7 +20,7 @@ from typing import List
 from sqlalchemy.future import select
 
 from ghga_service_chassis_lib.postgresql import AsyncPostgresqlConnector
-from ghga_service_chassis_lib.utils import DaoGenericBase
+from ghga_service_chassis_lib.utils import AsyncDaoGenericBase
 
 from .. import models
 from ..config import config
@@ -31,7 +31,7 @@ psql_connector = AsyncPostgresqlConnector(config)
 # Since this is just a DAO stub without implementation,
 # following pylint error are expected:
 # pylint: disable=unused-argument,no-self-use
-class DatabaseDao(DaoGenericBase):
+class DatabaseDao(AsyncDaoGenericBase):
     """
     A DAO base class for interacting with the database.
     """
@@ -50,21 +50,37 @@ class PostgresDatabase(DatabaseDao):
     An implementation of the  DatabaseDao interface using a PostgreSQL backend.
     """
 
+    def __init__(self):
+        """initialze DAO implementation"""
+        # will be defined on __enter__:
+        self._session_cm = None
+        self._session = None
+
+    async def __aenter__(self):
+        """Setup database connection"""
+        self._session_cm = psql_connector.transactional_session()
+        # pylint: disable=no-member
+        self._session = await self._session_cm.__aenter__()
+        return self
+
+    async def __aexit__(self, error_type, error_value, error_traceback):
+        """Teardown database connection"""
+        # pylint: disable=no-member
+        await self._session_cm.__aexit__(error_type, error_value, error_traceback)
+
     async def add_todo(self, item: models.ToDoItem) -> None:
         """add a todo item"""
 
         orm_item = db_models.ToDoItem(**item.dict())
-        async with psql_connector.transactional_session() as session:
-            session.add(orm_item)
+        self._session.add(orm_item)
 
     async def get_all_todos(self) -> List[models.ToDoItem]:
         """get all todo items"""
 
         # query all todo items:
-        async with psql_connector.transactional_session() as session:
-            query = await session.execute(
-                select(db_models.ToDoItem).order_by(db_models.ToDoItem.id)
-            )
+        query = await self._session.execute(
+            select(db_models.ToDoItem).order_by(db_models.ToDoItem.id)
+        )
 
         # translate orm_items to business-logic data models:
         items = [

@@ -32,3 +32,22 @@ class DaoGenericBase:
     def __exit__(self, err_type, err_value, err_traceback):
         """Teardown logic."""
         ...
+
+
+class AsyncDaoGenericBase:
+    """A generic base for implementing an asynchronous DAO interfaces."""
+
+    # Every DAO must support the context manager protocol.
+    # However, it is up to the DAO implementation whether
+    # the `__enter__` and `__exit__` functions are doing
+    # something useful. They may remain stubs:
+
+    async def __aenter__(self):
+        """Setup logic."""
+        ...
+        return self
+
+    # pylint: disable=unused-argument,no-self-use
+    async def _aexit__(self, err_type, err_value, err_traceback):
+        """Teardown logic."""
+        ...

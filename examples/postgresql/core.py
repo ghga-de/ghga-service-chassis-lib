@@ -42,8 +42,7 @@ async def add_some_todos():
             due_date=yesterday,
         ),
     ]
-
-    with Database() as database:
+    async with Database() as database:
         for todo in some_todos:
             await database.add_todo(todo)
 
@@ -54,7 +53,7 @@ async def print_all_todos():
 
     typer.echo("My ToDo list:")
 
-    with Database() as database:
+    async with Database() as database:
         all_todos = await database.get_all_todos()
         for todo in all_todos:
             message = f" - {todo.title}: {todo.description} until {todo.due_date}"
