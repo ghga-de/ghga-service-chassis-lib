@@ -98,6 +98,25 @@ def test_config_from_default_yaml(cwd: bool):
     assert config.dict() == expected
 
 
+def test_config_from_default_yaml_via_env():
+    """Test that default config yaml specified via an environment variable is correctly
+    read"""
+
+    prefix = "test_prefix"
+
+    # set env var:
+    config_yaml = config_yamls["basic"]
+    os.environ[f"{prefix.upper()}_CONFIG_YAML"] = config_yaml.path
+
+    # update config class with content of config yaml
+    config_constructor = config_from_yaml(prefix=prefix)(BasicConfig)
+    config = config_constructor()
+
+    # compare to expected content:
+    expected = BasicConfig(**config_yaml.content)
+    assert config.dict() == expected
+
+
 def test_error_on_invalid_base_class():
     """Check that an exception is thrown if the class passed to the
     config decorator does not inherit from pydantic.BaseSettings
