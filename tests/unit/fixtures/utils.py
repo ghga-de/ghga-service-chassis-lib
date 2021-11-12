@@ -15,10 +15,12 @@
 
 """Uitls for Fixture handling"""
 
+from pathlib import Path
+
 import yaml
 
 
-def read_yaml(path: str) -> dict:
+def read_yaml(path: Path) -> dict:
     """Read yaml file and return content as dict."""
     with open(path, "r") as file_:
         return yaml.safe_load(file_)
