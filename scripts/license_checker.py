@@ -65,7 +65,7 @@ EXCLUDE = [
 ]
 
 # exclude file by file ending from license header check:
-EXCLUDE_ENDINGS = ["json", "pyc", "yaml", "yml", "md"]
+EXCLUDE_ENDINGS = ["json", "pyc", "yaml", "yml", "md", "html", "xml"]
 
 # exclude any files with names that match any of the following regex:
 EXCLUDE_PATTERN = [r".*\.egg-info.*", r".*__cache__.*", r".*\.git.*"]
