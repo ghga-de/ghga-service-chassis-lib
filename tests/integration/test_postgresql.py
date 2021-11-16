@@ -25,12 +25,12 @@ from ghga_service_chassis_lib.postgresql import (
     AsyncPostgresqlConnector,
     SyncPostgresqlConnector,
 )
+from ghga_service_chassis_lib.postgresql_testing import config_from_psql_container
 
 from .fixtures.postgresql import (
     ADDITIONAL_TEST_DATA,
     PREPOPULATED_TEST_DATA,
     TestModel,
-    config_from_psql_container,
     fixture_to_orm_model,
     populate_db,
 )
