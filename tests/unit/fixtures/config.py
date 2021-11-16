@@ -19,6 +19,7 @@ import copy
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict
 
 from pydantic import BaseModel, BaseSettings
@@ -29,19 +30,19 @@ from . import BASE_DIR, utils
 
 # read all config yamls:
 CONFIG_YAML_PATTERN = r"(.*)\.yaml"
-CONFIG_YAML_DIR = os.path.join(BASE_DIR, "config_yamls")
+CONFIG_YAML_DIR = BASE_DIR / "config_yamls"
 
 
 class ConfigYamlFixture(BaseModel):
     """Container for config yaml fixtures"""
 
-    path: str
+    path: Path
     content: Dict[str, Any]
 
 
 def read_config_yaml(name: str):
     """Read config yaml."""
-    path = os.path.join(CONFIG_YAML_DIR, name)
+    path = CONFIG_YAML_DIR / name
     content = utils.read_yaml(path)
 
     return ConfigYamlFixture(path=path, content=content)
@@ -81,7 +82,7 @@ class EnvVarFixture:
 
 def read_env_var_sets() -> Dict[str, EnvVarFixture]:
     """Read env vars sets and return a list of EnvVarFixtures."""
-    env_var_dict = utils.read_yaml(os.path.join(BASE_DIR, "config_env_var_sets.yaml"))
+    env_var_dict = utils.read_yaml(BASE_DIR / "config_env_var_sets.yaml")
 
     return {
         set_name: EnvVarFixture(env_vars=env_vars)
