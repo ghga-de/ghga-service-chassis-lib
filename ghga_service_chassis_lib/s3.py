@@ -39,6 +39,8 @@ from .object_storage_dao import (
     ObjectStorageDaoError,
     OutOfContextError,
     PresignedPostURL,
+    validate_bucket_id,
+    validate_object_id,
 )
 
 
@@ -129,12 +131,17 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
     An implementation of the ObjectStorageDao interface for interacting specifically
     with S3 object storages.
     Exceptions may include:
-        - BucketError, or derived exceptions:
-            - BucketNotFoundError
-            - BucketIdAlreadyInUse
-        - ObjectError, or derived exceptions:
-            - ObjectNotFoundError
-            - ObjectAlreadyExistsError
+        - NotImplementedError
+        - ObjectStorageDaoError, or derived exceptions:
+            - OutOfContextError (if the context manager protocol is not used correctly)
+            - BucketError, or derived exceptions:
+                - BucketIdValidationError
+                - BucketNotFoundError
+                - BucketAlreadyExists
+            - ObjectError, or derived exceptions:
+                - ObjectIdValidationError
+                - ObjectNotFoundError
+                - ObjectAlreadyExistsError
     """
 
     _out_of_context_error = OutOfContextError(context_manager_name="ObjectStorageS3")
@@ -204,6 +211,8 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         if not isinstance(self._client, botocore.client.BaseClient):
             raise self._out_of_context_error
 
+        validate_bucket_id(bucket_id)
+
         try:
             bucket_list = self._client.list_buckets()
         except botocore.exceptions.ClientError as error:
@@ -237,6 +246,8 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         if not isinstance(self._client, botocore.client.BaseClient):
             raise self._out_of_context_error
 
+        validate_bucket_id(bucket_id)
+
         self._assert_bucket_not_exists(bucket_id)
 
         try:
@@ -253,6 +264,8 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         """
         if not isinstance(self._resource, boto3.resources.factory.ServiceResource):
             raise self._out_of_context_error
+
+        validate_bucket_id(bucket_id)
 
         self._assert_bucket_exists(bucket_id)
 
@@ -277,6 +290,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
 
         if object_md5sum is not None:
             raise NotImplementedError("Md5 checking is not yet implemented.")
+
+        validate_bucket_id(bucket_id)
+        validate_object_id(object_id)
 
         try:
             _ = self._client.head_object(
@@ -325,6 +341,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         if not isinstance(self._client, botocore.client.BaseClient):
             raise self._out_of_context_error
 
+        validate_bucket_id(bucket_id)
+        validate_object_id(object_id)
+
         self._assert_object_not_exists(bucket_id=bucket_id, object_id=object_id)
 
         conditions = (
@@ -362,6 +381,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         if not isinstance(self._client, botocore.client.BaseClient):
             raise self._out_of_context_error
 
+        validate_bucket_id(bucket_id)
+        validate_object_id(object_id)
+
         self._assert_object_exists(bucket_id=bucket_id, object_id=object_id)
 
         try:
@@ -389,6 +411,11 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         """
         if not isinstance(self._client, botocore.client.BaseClient):
             raise self._out_of_context_error
+
+        validate_bucket_id(source_bucket_id)
+        validate_object_id(source_object_id)
+        validate_bucket_id(dest_bucket_id)
+        validate_object_id(dest_object_id)
 
         self._assert_object_exists(
             bucket_id=source_bucket_id, object_id=source_object_id
@@ -419,6 +446,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         """
         if not isinstance(self._client, botocore.client.BaseClient):
             raise self._out_of_context_error
+
+        validate_bucket_id(bucket_id)
+        validate_object_id(object_id)
 
         self._assert_object_exists(bucket_id=bucket_id, object_id=object_id)
 
