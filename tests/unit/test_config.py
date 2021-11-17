@@ -15,8 +15,8 @@
 
 """Test config parsing module"""
 import os
-import pathlib
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -78,12 +78,12 @@ def test_config_from_yaml_and_env():
 def test_config_from_default_yaml(cwd: bool):
     """Test that default config yaml from home is correctly read"""
 
-    base_dir = os.getcwd() if cwd else pathlib.Path.home()
+    base_dir = Path(os.getcwd()) if cwd else Path.home()
     prefix = "test_prefix"
 
     # copy basic config to default config location:
     config_yaml = config_yamls["basic"]
-    default_yaml_path = os.path.join(str(base_dir), f".{prefix}.yaml")
+    default_yaml_path = base_dir / f".{prefix}.yaml"
     shutil.copy(config_yaml.path, default_yaml_path)
 
     # update config class with content of config yaml
@@ -92,6 +92,25 @@ def test_config_from_default_yaml(cwd: bool):
 
     # cleanup default config yaml:
     os.remove(default_yaml_path)
+
+    # compare to expected content:
+    expected = BasicConfig(**config_yaml.content)
+    assert config.dict() == expected
+
+
+def test_config_from_default_yaml_via_env():
+    """Test that default config yaml specified via an environment variable is correctly
+    read"""
+
+    prefix = "test_prefix"
+
+    # set env var:
+    config_yaml = config_yamls["basic"]
+    os.environ[f"{prefix.upper()}_CONFIG_YAML"] = str(config_yaml.path)
+
+    # update config class with content of config yaml
+    config_constructor = config_from_yaml(prefix=prefix)(BasicConfig)
+    config = config_constructor()
 
     # compare to expected content:
     expected = BasicConfig(**config_yaml.content)

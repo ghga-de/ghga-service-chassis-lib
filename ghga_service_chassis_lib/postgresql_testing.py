@@ -13,14 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Uitls for Fixture handling"""
+"""
+This module contains utilities for testing code created with the functionality
+from the `postgresql` module.
+"""
 
-from pathlib import Path
+from testcontainers.postgres import PostgresContainer
 
-import yaml
+from .postgresql import PostgresqlConfigBase
 
 
-def read_yaml(path: Path) -> dict:
-    """Read yaml file and return content as dict."""
-    with open(path, "r") as file_:
-        return yaml.safe_load(file_)
+def config_from_psql_container(container: PostgresContainer) -> PostgresqlConfigBase:
+    """Prepares a PostgresqlConfigBase from an instance of a postgres test container."""
+    db_url = container.get_connection_url()
+    db_url_formatted = db_url.replace("postgresql+psycopg2", "postgresql")
+    return PostgresqlConfigBase(db_url=db_url_formatted)

@@ -13,14 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Uitls for Fixture handling"""
+"""fixtures for testing the `object_storage_dao` module"""
 
-from pathlib import Path
+TOO_LONG_ID = "a" * 64
+TOO_SHORT_ID = "a1"
 
-import yaml
+VALID_BUCKET_ID = "ghgas-12239992232323422"
+VALID_OBJECT_ID = "ghgaf-12239992232323422.test"
 
+BAD_CHARS_BUCKET_ID = ["A", "_", ".", "/", "&", "+", ":"]
+BAD_CHARS_OBJECT_ID = ["_", "/", "&", "+", ":"]
 
-def read_yaml(path: Path) -> dict:
-    """Read yaml file and return content as dict."""
-    with open(path, "r") as file_:
-        return yaml.safe_load(file_)
+BAD_BUCKET_IDS = ["-aa", "aa-"]
+BAD_OBJECT_IDS = ["-aa", "aa-", ".aa", "aa."]

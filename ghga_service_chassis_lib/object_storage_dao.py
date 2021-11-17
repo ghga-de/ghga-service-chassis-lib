@@ -19,6 +19,7 @@ with file objects along with some specific implementations
 of that DAO.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -103,6 +104,72 @@ class ObjectAlreadyExistsError(ObjectError):
         super().__init__(message)
 
 
+class BucketIdValidationError(BucketError):
+    """Thrown when a bucket ID is not valid."""
+
+    def __init__(self, bucket_id: str, reason: Optional[str]):
+        message = f"The specified bucket ID '{bucket_id}' is not valid" + (
+            f": {reason}." if reason else "."
+        )
+        super().__init__(message)
+
+
+class ObjectIdValidationError(ObjectError):
+    """Thrown when an object ID is not valid."""
+
+    def __init__(self, object_id: str, reason: Optional[str]):
+        message = f"The specified object ID '{object_id}' is not valid" + (
+            f": {reason}." if reason else "."
+        )
+        super().__init__(message)
+
+
+def validate_bucket_id(bucket_id: str):
+    """Check whether a bucket id follows the recommended naming pattern.
+    This is roughly based on:
+    https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
+    Raises BucketIdValidationError if not valid.
+    """
+    if len(bucket_id) not in range(3, 64):
+        raise BucketIdValidationError(
+            bucket_id=bucket_id,
+            reason="must be between 3 and 63 character long",
+        )
+    if not re.match(r"^[a-z0-9\-]*$", bucket_id):
+        raise BucketIdValidationError(
+            bucket_id=bucket_id,
+            reason="only lowercase letters, numbers, and hyphens (-) are allowd",
+        )
+    if bucket_id.startswith("-") or bucket_id.endswith("-"):
+        raise BucketIdValidationError(
+            bucket_id=bucket_id,
+            reason="may not start or end with a hyphen (-).",
+        )
+
+
+def validate_object_id(object_id: str):
+    """Check whether a object id follows the recommended naming pattern.
+    This is roughly based on (plus some additional restrictions):
+    https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
+    Raises ObjectIdValidationError if not valid.
+    """
+    if len(object_id) not in range(3, 64):
+        raise ObjectIdValidationError(
+            object_id=object_id,
+            reason="must be between 3 and 63 character long",
+        )
+    if not re.match(r"^[a-zA-Z0-9\-\.]*$", object_id):
+        raise ObjectIdValidationError(
+            object_id=object_id,
+            reason="only letters, numbers, and hyphens (-), and dots (.) are allowd",
+        )
+    if re.match(r"^[\-\.].*", object_id) or re.match(r".*[\-\.]$", object_id):
+        raise ObjectIdValidationError(
+            object_id=object_id,
+            reason="may not start or end with a hyphen (-) or a dot (.).",
+        )
+
+
 @dataclass
 class PresignedPostURL:
     """Container for presigned POST URLs along with additional metadata fields that
@@ -121,11 +188,16 @@ class ObjectStorageDao(DaoGenericBase):
         - ObjectStorageDaoError, or derived exceptions:
             - OutOfContextError (if the context manager protocol is not used correctly)
             - BucketError, or derived exceptions:
+                - BucketIdValidationError
                 - BucketNotFoundError
                 - BucketAlreadyExists
             - ObjectError, or derived exceptions:
+                - ObjectIdValidationError
                 - ObjectNotFoundError
                 - ObjectAlreadyExistsError
+    For raising BucketIdValidationError and ObjectIdValidationError, it is recommended
+    that the implementation uses the functions validate_bucket_id and
+    validate_object_id.
     Please note, it is not required for an ObjectStorageDao to use the above errors.
     So when using an implementation you cannot rely on above errors to be always raised
     in the suitable situations.
