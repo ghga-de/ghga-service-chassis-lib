@@ -21,7 +21,7 @@ TOO_SHORT_ID = "a1"
 VALID_BUCKET_ID = "ghgas-12239992232323422"
 VALID_OBJECT_ID = "ghgaf-12239992232323422.test"
 
-BAD_CHARS_BUCKET_ID = ["_", ".", "/", "&", "+", ":"]
+BAD_CHARS_BUCKET_ID = ["A", "_", ".", "/", "&", "+", ":"]
 BAD_CHARS_OBJECT_ID = ["_", "/", "&", "+", ":"]
 
 BAD_BUCKET_IDS = ["-aa", "aa-"]
