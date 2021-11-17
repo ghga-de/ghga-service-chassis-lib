@@ -22,9 +22,6 @@ from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.decl_api import DeclarativeMeta
-from testcontainers.postgres import PostgresContainer
-
-from ghga_service_chassis_lib.postgresql import PostgresqlConfigBase
 
 Base: DeclarativeMeta = declarative_base()
 
@@ -74,11 +71,3 @@ def populate_db(db_url: str):
             orm_entry = fixture_to_orm_model(entry)
             session.add(orm_entry)
         session.commit()
-
-
-def config_from_psql_container(container: PostgresContainer) -> PostgresqlConfigBase:
-    """Prepares a PostgresqlConfigBase from an instance of
-    postgres test container."""
-    db_url = container.get_connection_url()
-    db_url_formatted = db_url.replace("postgresql+psycopg2", "postgresql")
-    return PostgresqlConfigBase(db_url=db_url_formatted)
