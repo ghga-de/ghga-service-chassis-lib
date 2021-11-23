@@ -17,7 +17,7 @@
 
 import asyncio
 
-from .config import config
+from .config import CONFIG
 from .core import add_some_todos, print_all_todos
 from .setup_db import setup_db
 
@@ -29,5 +29,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    setup_db(config.db_url)
+    setup_db(CONFIG.db_url)
     asyncio.run(main())

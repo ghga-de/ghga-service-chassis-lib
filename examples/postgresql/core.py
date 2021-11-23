@@ -20,10 +20,11 @@ from datetime import datetime, timedelta
 import typer
 
 from . import models
+from .config import CONFIG, Config
 from .dao import Database
 
 
-async def add_some_todos():
+async def add_some_todos(config: Config = CONFIG):
     """Add some todo items."""
     tomorrow = datetime.now() + timedelta(1)
     yesterday = datetime.now() - timedelta(1)
@@ -42,18 +43,18 @@ async def add_some_todos():
             due_date=yesterday,
         ),
     ]
-    async with Database() as database:
+    async with Database(config) as database:
         for todo in some_todos:
             await database.add_todo(todo)
 
 
-async def print_all_todos():
+async def print_all_todos(config: Config = CONFIG):
     """Print all todo items and highlight items that are overdue"""
     now = datetime.now()
 
     typer.echo("My ToDo list:")
 
-    async with Database() as database:
+    async with Database(config) as database:
         all_todos = await database.get_all_todos()
         for todo in all_todos:
             message = f" - {todo.title}: {todo.description} until {todo.due_date}"
