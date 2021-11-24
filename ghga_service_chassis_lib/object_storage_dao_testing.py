@@ -18,13 +18,12 @@ This module contains utilities for testing code created with the functionality
 from the `object_storage_dao` module.
 """
 
-from typing import List
-from pathlib import Path
-from tempfile import TemporaryDirectory
 import hashlib
+from pathlib import Path
+from typing import List
 
 import requests
-from pydantic import BaseModel, BaseSettings, validator
+from pydantic import BaseModel, validator
 
 from .object_storage_dao import ObjectStorageDao, PresignedPostURL
 
@@ -32,8 +31,8 @@ from .object_storage_dao import ObjectStorageDao, PresignedPostURL
 def calc_md5(content: bytes) -> str:
     """
     Calc the md5 checksum for the specified bytes.
-    """  # nosec
-    return hashlib.md5(content).hexdigest()
+    """
+    return hashlib.md5(content).hexdigest()  # nosec
 
 
 class ObjectFixture(BaseModel):
@@ -45,14 +44,14 @@ class ObjectFixture(BaseModel):
     content: bytes = b"will be overwritten"
     md5: str = "will be overwritten"
 
-    # pylint: disable=no-self-use
+    # pylint: disable=no-self-argument,no-self-use
     @validator("content", always=True)
     def read_content(cls, _, values):
         """Read in the file content."""
         with open(values["file_path"], "rb") as file:
             return file.read()
 
-    # pylint: disable=no-self-use
+    # pylint: disable=no-self-argument,no-self-use
     @validator("md5", always=True)
     def calc_md5_from_content(cls, _, values):
         """Calculate md5 based on the content."""
@@ -76,35 +75,29 @@ def download_and_check_test_file(presigned_url: str, expected_md5: str):
     response = requests.get(presigned_url)
     response.raise_for_status()
 
-    # with TemporaryDirectory() as temp_dir:
-    #     temp_file_path = Path(temp_dir) / "downloaded_file"
-
-    #     with open(temp_file_path, "wb") as temp_file:
-    #         temp_file.write(response.content)
-
     observed_md5 = calc_md5(response.content)
 
-    assert observed_md5 == expected_md5, "downloaded file has unexpected md5 checksum"
+    assert (  # nosec
+        observed_md5 == expected_md5
+    ), "downloaded file has unexpected md5 checksum"
 
 
 def populate_storage(
-    storage_constructur: ObjectStorageDao,
-    storage_config: BaseSettings,
+    storage: ObjectStorageDao,
     fixtures: List[ObjectFixture],
 ):
     """Populate Storage with ObjectFixtures"""
 
-    with storage_constructur(storage_config) as storage:
-        for fixture in fixtures:
-            if not storage.does_bucket_exist(fixture.bucket_id):
-                storage.create_bucket(fixture.bucket_id)
+    for fixture in fixtures:
+        if not storage.does_bucket_exist(fixture.bucket_id):
+            storage.create_bucket(fixture.bucket_id)
 
-            presigned_url = storage.get_object_upload_url(
-                bucket_id=fixture.bucket_id, object_id=fixture.object_id
-            )
+        presigned_url = storage.get_object_upload_url(
+            bucket_id=fixture.bucket_id, object_id=fixture.object_id
+        )
 
-            upload_file(
-                presigned_url=presigned_url,
-                file_path=fixture.file_path,
-                file_md5=fixture.md5,
-            )
+        upload_file(
+            presigned_url=presigned_url,
+            file_path=fixture.file_path,
+            file_md5=fixture.md5,
+        )

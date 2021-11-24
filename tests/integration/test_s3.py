@@ -36,7 +36,6 @@ from ghga_service_chassis_lib.object_storage_dao_testing import (
 )
 from ghga_service_chassis_lib.s3 import ObjectStorageS3
 from ghga_service_chassis_lib.s3_testing import config_from_localstack_container
-from tests.integration import fixtures
 
 from .fixtures.storage import OBJECT_FIXTURE
 
@@ -135,13 +134,11 @@ def test_object_and_bucket_collisions():
         existing_object_id = OBJECT_FIXTURE.object_id
         config = config_from_localstack_container(localstack)
 
-        populate_storage(
-            storage_constructur=ObjectStorageS3,
-            storage_config=config,
-            fixtures=[OBJECT_FIXTURE],
-        )
-
         with ObjectStorageS3(config=config) as storage:
+            populate_storage(
+                storage=ObjectStorageS3,
+                fixtures=[OBJECT_FIXTURE],
+            )
 
             with pytest.raises(BucketAlreadyExists):
                 storage.create_bucket(existing_bucket_id)
@@ -171,13 +168,12 @@ def test_handling_non_existing_file_and_bucket():
         existing_object_id = OBJECT_FIXTURE.object_id
         config = config_from_localstack_container(localstack)
 
-        populate_storage(
-            storage_constructur=ObjectStorageS3,
-            storage_config=config,
-            fixtures=[OBJECT_FIXTURE],
-        )
-
         with ObjectStorageS3(config=config) as storage:
+            populate_storage(
+                storage=ObjectStorageS3,
+                fixtures=[OBJECT_FIXTURE],
+            )
+
             with pytest.raises(BucketNotFoundError):
                 storage.delete_bucket(non_exisiting_bucket_id)
 
