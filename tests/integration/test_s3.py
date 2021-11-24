@@ -136,7 +136,7 @@ def test_object_and_bucket_collisions():
 
         with ObjectStorageS3(config=config) as storage:
             populate_storage(
-                storage=ObjectStorageS3,
+                storage=storage,
                 fixtures=[OBJECT_FIXTURE],
             )
 
@@ -170,7 +170,7 @@ def test_handling_non_existing_file_and_bucket():
 
         with ObjectStorageS3(config=config) as storage:
             populate_storage(
-                storage=ObjectStorageS3,
+                storage=storage,
                 fixtures=[OBJECT_FIXTURE],
             )
 
