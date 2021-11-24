@@ -13,21 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""package entrypoint"""
+"""
+This module contains utilities for testing code created with the functionality
+from the `s3` module.
+"""
 
-import asyncio
+from testcontainers.localstack import LocalStackContainer
 
-from .config import CONFIG
-from .core import add_some_todos, print_all_todos
-from .setup_db import setup_db
-
-
-async def main():
-    """main function handed to the event loop"""
-    await add_some_todos()
-    await print_all_todos()
+from .s3 import S3ConfigBase
 
 
-if __name__ == "__main__":
-    setup_db(CONFIG.db_url)
-    asyncio.run(main())
+def config_from_localstack_container(container: LocalStackContainer) -> S3ConfigBase:
+    """Prepares a S3ConfigBase from an instance of a localstack test container."""
+    s3_endpoint_url = container.get_url()
+    return S3ConfigBase(  # nosec
+        s3_endpoint_url=s3_endpoint_url,
+        s3_access_key_id="test",
+        s3_secret_access_key="test",
+    )

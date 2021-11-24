@@ -159,7 +159,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         Args:
             config (S3ConfigBase): Config parameters specified using the S3ConfigBase model.
         """
+        super().__init__(config)
         self._config = config
+
         self.endpoint_url = config.s3_endpoint_url
 
         self._advanced_config = (
