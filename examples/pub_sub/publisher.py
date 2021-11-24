@@ -43,7 +43,7 @@ def run():
         json_schema=message_schema,
     )
 
-    # publish 100 messages:
+    # publish 10 messages:
     for count in range(0, 10):
         message = {"count": count}
         topic.publish(message)
