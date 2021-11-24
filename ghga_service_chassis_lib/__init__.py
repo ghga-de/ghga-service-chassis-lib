@@ -15,4 +15,4 @@
 
 """A library that contains the basic chassis functionality used in services of GHGA"""
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"

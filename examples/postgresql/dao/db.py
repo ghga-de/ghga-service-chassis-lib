@@ -15,18 +15,20 @@
 
 """db boilerplate"""
 
-from typing import List
+from typing import Any, List
 
 from sqlalchemy.future import select
 
-from ghga_service_chassis_lib.postgresql import AsyncPostgresqlConnector
+from ghga_service_chassis_lib.postgresql import (
+    AsyncPostgresqlConnector,
+    PostgresqlConfigBase,
+)
 from ghga_service_chassis_lib.utils import AsyncDaoGenericBase
 
 from .. import models
-from ..config import config
+from ..config import CONFIG
 from . import db_models
 
-psql_connector = AsyncPostgresqlConnector(config)
 
 # Since this is just a DAO stub without implementation,
 # following pylint error are expected:
@@ -50,15 +52,17 @@ class PostgresDatabase(DatabaseDao):
     An implementation of the  DatabaseDao interface using a PostgreSQL backend.
     """
 
-    def __init__(self):
+    def __init__(self, config: PostgresqlConfigBase = CONFIG):
         """initialze DAO implementation"""
         # will be defined on __enter__:
-        super().__init__()
-        self._session_cm = None
-        self._session = None
+        super().__init__(config=config)
+        self._config = config
+        self._session_cm: Any = None
+        self._session: Any = None
 
     async def __aenter__(self):
         """Setup database connection"""
+        psql_connector = AsyncPostgresqlConnector(self._config)
         self._session_cm = psql_connector.transactional_session()
         # pylint: disable=no-member
         self._session = await self._session_cm.__aenter__()

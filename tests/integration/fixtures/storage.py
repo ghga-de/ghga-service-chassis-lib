@@ -13,21 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""package entrypoint"""
+"""Fixtures for testing the S3 DAO"""
 
-import asyncio
+from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
 
-from .config import CONFIG
-from .core import add_some_todos, print_all_todos
-from .setup_db import setup_db
+from . import BASE_DIR
+from .utils import generate_random_numeric_string
 
-
-async def main():
-    """main function handed to the event loop"""
-    await add_some_todos()
-    await print_all_todos()
-
-
-if __name__ == "__main__":
-    setup_db(CONFIG.db_url)
-    asyncio.run(main())
+OBJECT_FIXTURE = ObjectFixture(
+    file_path=BASE_DIR / "test_file.yaml",
+    bucket_id="myexistingbucket" + generate_random_numeric_string(),
+    object_id="myexistingobject" + generate_random_numeric_string(),
+)

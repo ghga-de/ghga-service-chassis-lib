@@ -15,9 +15,15 @@
 
 """General utilities that don't require heavy dependencies."""
 
+from pydantic import BaseSettings
+
 
 class DaoGenericBase:
     """A generic base for implementing DAO interfaces."""
+
+    def __init__(self, config: BaseSettings):  # pylint: disable=unused-argument
+        """Initialize DAO with a config params passed as pydantic BaseSettings object."""
+        ...
 
     # Every DAO must support the context manager protocol.
     # However, it is up to the DAO implementation whether
@@ -36,6 +42,10 @@ class DaoGenericBase:
 
 class AsyncDaoGenericBase:
     """A generic base for implementing an asynchronous DAO interfaces."""
+
+    def __init__(self, config: BaseSettings):  # pylint: disable=unused-argument
+        """Initialize DAO with a config params passed as pydantic BaseSettings object."""
+        ...
 
     # Every DAO must support the context manager protocol.
     # However, it is up to the DAO implementation whether

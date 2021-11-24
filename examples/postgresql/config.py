@@ -33,4 +33,4 @@ class Config(ApiConfigBase, PostgresqlConfigBase):
     another_additional_param: int = 37
 
 
-config = Config(db_url=DB_URL)
+CONFIG = Config(db_url=DB_URL)
