@@ -32,6 +32,7 @@ class PubSubConfigBase(BaseSettings):
     Inherit your config class from this class if you need
     to run an async PubSub API."""
 
+    service_name: str
     rabbitmq_host: str = "rabbitmq"
     rabbitmq_port: int = 5672
 
