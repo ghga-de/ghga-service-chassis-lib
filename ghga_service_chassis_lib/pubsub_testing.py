@@ -25,6 +25,7 @@ from the `pubsub` module.
 
 import os
 from pathlib import Path
+from time import sleep
 from typing import Optional
 
 import pika
@@ -53,7 +54,7 @@ class RabbitMqContainer(DockerContainer):
 
     def __init__(
         self,
-        image: str = "rabbitmq:latest",
+        image: str = "rabbitmq:3.8-management",
         port: int = 5672,
         config_file_path: Optional[Path] = None,
     ) -> None:
@@ -70,8 +71,8 @@ class RabbitMqContainer(DockerContainer):
         else:
             self.RABBITMQ_CONFIG_FILE = None
 
-        self.with_exposed_ports(self.port)
-        self.with_env("RABBITMQ_NODE_PORT", port)
+        self.with_exposed_ports(self.RABBITMQ_NODE_PORT)
+        self.with_env("RABBITMQ_NODE_PORT", self.RABBITMQ_NODE_PORT)
         if config_file_path is not None:
             self.with_env("RABBITMQ_CONFIG_FILE", self.RABBITMQ_CONFIG_FILE)
 
@@ -85,3 +86,19 @@ class RabbitMqContainer(DockerContainer):
             host=self.get_container_host_ip(),
             port=self.get_exposed_port(self.RABBITMQ_NODE_PORT),
         )
+
+    def start(self):
+        super().start()
+
+        # wait until RabbitMQ is ready:
+        for attempt in range(0, 100):
+            sleep(0.1)
+            try:
+                connection = pika.BlockingConnection(self.get_connection_params())
+                if connection.is_open:
+                    connection.close()
+                    return self
+            except pika.exceptions.AMQPConnectionError:
+                continue
+
+        raise RuntimeError()
