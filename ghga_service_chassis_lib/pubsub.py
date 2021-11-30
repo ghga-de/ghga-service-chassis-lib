@@ -17,9 +17,8 @@
 
 import json
 import logging
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Optional, Tuple, Type
+from typing import Callable, Optional, Tuple
 
 import jsonschema
 import pika
@@ -32,6 +31,7 @@ class PubSubConfigBase(BaseSettings):
     Inherit your config class from this class if you need
     to run an async PubSub API."""
 
+    service_name: str
     rabbitmq_host: str = "rabbitmq"
     rabbitmq_port: int = 5672
 
@@ -96,26 +96,9 @@ def callback_wrapper_factory(
     return callback
 
 
-@dataclass
 class AmqpTopic:
     """A base class to connect and iteract to/with a RabbitMQ host
     via the `topic` exchange type.
-
-    Args:
-        connection_params [Type(pika.connection.Parameters)]:
-            An object of class pika.connection.Parameters that configures
-            the connection to the RabbitMQ broker.
-        topic_name (str):
-            The name of the topic (only use letters, numbers, and "_").
-            The queue binding key as well as the names for the associated exchange
-            and queue will be derived from this string.
-        service_name (str):
-            A name that uniquely identifies the service. This will be used to
-            ensure that messages will not be duplicates between instances of
-            the same service.
-        json_schema (Optional[dict]):
-            Optional. If provided, the message body will be validated against this
-            json schema.
 
     Naming patterns for Exchanges and Queues:
         Exchanges will always be named according to the `topic_name`.
@@ -123,10 +106,31 @@ class AmqpTopic:
         and the `topic_name`
     """
 
-    connection_params: Type[pika.connection.Parameters]
-    topic_name: str
-    service_name: str
-    json_schema: Optional[dict] = None
+    def __init__(
+        self,
+        config: PubSubConfigBase,
+        topic_name: str,
+        json_schema: Optional[dict] = None,
+    ):
+        """Initialize the AMQP topic.
+
+        Args:
+            config [PubSubConfigBase]:
+                Config paramaters provided as PubSubConfigBase object.
+            topic_name (str):
+                The name of the topic (only use letters, numbers, and "_").
+                The queue binding key as well as the names for the associated exchange
+                and queue will be derived from this string.
+            json_schema (Optional[dict]):
+                Optional. If provided, the message body will be validated against this
+                json schema.
+        """
+        self.connection_params = pika.ConnectionParameters(
+            host=config.rabbitmq_host, port=config.rabbitmq_port
+        )
+        self.service_name = config.service_name
+        self.topic_name = topic_name
+        self.json_schema = json_schema
 
     def _create_channel_and_exchange(
         self,

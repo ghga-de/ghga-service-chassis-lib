@@ -26,9 +26,9 @@ from time import sleep
 
 import pytest
 
-from ghga_service_chassis_lib.pubsub import AmqpTopic
+from ghga_service_chassis_lib.pubsub import AmqpTopic, PubSubConfigBase
 
-from .fixtures.amqp import CONNECTION_PARAMS, MessageSuccessfullyReceived
+from .fixtures.amqp import RABBITMQ_TEST_HOST, MessageSuccessfullyReceived
 from .fixtures.utils import set_timeout
 
 
@@ -48,9 +48,10 @@ def test_pub_sub():
 
         # create a topic object:
         topic = AmqpTopic(
-            connection_params=CONNECTION_PARAMS,
+            config=PubSubConfigBase(
+                rabbitmq_host=RABBITMQ_TEST_HOST, service_name="test_publisher"
+            ),
             topic_name=topic_name,
-            service_name="test_publisher",
             json_schema=None,
         )
 
@@ -65,9 +66,10 @@ def test_pub_sub():
 
     # receive the message:
     topic2 = AmqpTopic(
-        connection_params=CONNECTION_PARAMS,
+        config=PubSubConfigBase(
+            rabbitmq_host=RABBITMQ_TEST_HOST, service_name="test_subscriber"
+        ),
         topic_name=topic_name,
-        service_name="test_subscriber",
         json_schema=None,
     )
 
