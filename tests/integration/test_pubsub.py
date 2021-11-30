@@ -27,56 +27,62 @@ from time import sleep
 import pytest
 
 from ghga_service_chassis_lib.pubsub import AmqpTopic, PubSubConfigBase
+from ghga_service_chassis_lib.pubsub_testing import RabbitMqContainer
 
-from .fixtures.amqp import RABBITMQ_TEST_HOST, MessageSuccessfullyReceived
-from .fixtures.utils import set_timeout
+from .fixtures.amqp import MessageSuccessfullyReceived
 
 
-@set_timeout(1)  # timeout after 1s
 def test_pub_sub():
     """Test basic publish subscribe senario"""
 
-    timestamp = str(datetime.now().timestamp()).replace(".", "_")
-    topic_name = f"test_pub_sub_{timestamp}"
+    timestamp = str(datetime.now().timestamp())
+    topic_name = "test_pub_sub"
     test_message = {"timestamp": timestamp}
 
-    # publish the message:
-    def publish(topic_name: str, test_message: dict):
-        """function that runs as background process"""
-        # sleep shortly to make sure that the subscriber starts first:
-        sleep(0.2)
+    with RabbitMqContainer() as rabbitmq:
+        connection_params = rabbitmq.get_connection_params()
 
-        # create a topic object:
-        topic = AmqpTopic(
+        # publish the message:
+        def publish(topic_name: str, test_message: dict):
+            """function that runs as background process"""
+            # sleep shortly to make sure that the subscriber starts first:
+            sleep(0.2)
+
+            # create a topic object:
+            topic = AmqpTopic(
+                config=PubSubConfigBase(
+                    rabbitmq_host=connection_params.host,
+                    rabbitmq_port=connection_params.port,
+                    service_name="test_publisher",
+                ),
+                topic_name=topic_name,
+                json_schema=None,
+            )
+
+            # send a test message:
+            topic.publish(test_message)
+
+        process = multiprocessing.Process(
+            target=publish,
+            kwargs={"topic_name": topic_name, "test_message": test_message},
+        )
+        process.start()
+
+        # receive the message:
+        topic2 = AmqpTopic(
             config=PubSubConfigBase(
-                rabbitmq_host=RABBITMQ_TEST_HOST, service_name="test_publisher"
+                rabbitmq_host=connection_params.host,
+                rabbitmq_port=connection_params.port,
+                service_name="test_subscriber",
             ),
             topic_name=topic_name,
             json_schema=None,
         )
 
-        # send a test message:
-        topic.publish(test_message)
+        def process_message(message_received: dict):
+            """proccess the message"""
+            assert message_received == test_message
+            raise MessageSuccessfullyReceived()
 
-    process = multiprocessing.Process(
-        target=publish,
-        kwargs={"topic_name": topic_name, "test_message": test_message},
-    )
-    process.start()
-
-    # receive the message:
-    topic2 = AmqpTopic(
-        config=PubSubConfigBase(
-            rabbitmq_host=RABBITMQ_TEST_HOST, service_name="test_subscriber"
-        ),
-        topic_name=topic_name,
-        json_schema=None,
-    )
-
-    def process_message(message_received: dict):
-        """proccess the message"""
-        assert message_received == test_message
-        raise MessageSuccessfullyReceived()
-
-    with pytest.raises(MessageSuccessfullyReceived):
-        topic2.subscribe_for_ever(exec_on_message=process_message)
+        with pytest.raises(MessageSuccessfullyReceived):
+            topic2.subscribe_for_ever(exec_on_message=process_message)
