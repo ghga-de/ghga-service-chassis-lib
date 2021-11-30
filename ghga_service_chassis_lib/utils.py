@@ -16,6 +16,8 @@
 """General utilities that don't require heavy dependencies."""
 
 from pydantic import BaseSettings
+from typing import Callable, Optional
+import signal
 
 
 class DaoGenericBase:
@@ -61,3 +63,31 @@ class AsyncDaoGenericBase:
     async def _aexit__(self, err_type, err_value, err_traceback):
         """Teardown logic."""
         ...
+
+
+def raise_timeout_error(_, __):
+    """Raise a TimeoutError"""
+    raise TimeoutError()
+
+
+def exec_with_timeout(
+    func: Callable,
+    timeout_after: int,
+    func_args: Optional[list] = None,
+    func_kwargs: Optional[dict] = None,
+):
+    """
+    Exec a function (`func`) with a specified timeout (`timeout_after` in seconds).
+    If the function doesn't finish before the timeout, a TimeoutError is thrown.
+    """
+    # set a timer that raises an exception if timed out
+    signal.signal(signal.SIGALRM, raise_timeout_error)
+    signal.alarm(timeout_after)
+
+    # execute the function
+    result = func(*func_args, **func_kwargs)
+
+    # disable the timer
+    signal.alarm(0)
+
+    return result
