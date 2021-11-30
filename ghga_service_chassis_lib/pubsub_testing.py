@@ -24,6 +24,7 @@ from the `pubsub` module.
 # pylint: skip-file
 
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
 from typing import Optional
@@ -56,16 +57,36 @@ class RabbitMqContainer(DockerContainer):
             channel = connection.channel()
     """
 
-    _CONFIG_FILE_FROM_ENV = os.environ.get("RABBITMQ_CONFIG_FILE")
+    _CONFIG_FILE_FROM_ENV: Optional[str] = os.environ.get("RABBITMQ_CONFIG_FILE")
+    _READINESS_RETRY_DELAY: float = 0.1
 
     def __init__(
         self,
-        image: str = "rabbitmq:3.8-management",
+        image: str = "rabbitmq:latest",
         port: int = 5672,
         config_file_path: Optional[Path] = None,
+        startup_timeout: int = 60,
     ) -> None:
+        """Initialize the RabbitMQ test container.
+
+        Args:
+            image (str, optional):
+                The docker image from docker hub. Defaults to "rabbitmq:latest".
+            port (int, optional):
+                The port to reach the AMQP API. Defaults to 5672.
+            config_file_path (Optional[Path], optional):
+                Path to RabbitMQ config file (`*.conf`). See the RabbitMQ documentation for further
+                details:
+                https://www.rabbitmq.com/configure.html#configuration-files
+                Defaults to None.
+            startup_timeout (int, optional):
+                The maximally allowed startup time in seconds. The AMQP API should be reachable
+                by then or an ReadinessTimeoutError is thrown.
+                Defaults to 60.
+        """
         super(RabbitMqContainer, self).__init__(image=image)
         self.RABBITMQ_NODE_PORT = port
+        self.startup_timeout = startup_timeout
 
         # Use the config file path either from the function argument or the env var
         # or fall back to `None`:
@@ -110,8 +131,9 @@ class RabbitMqContainer(DockerContainer):
         super().start()
 
         # wait until RabbitMQ is ready:
-        for attempt in range(0, 100):
-            sleep(0.1)
+        timeout_deadline = datetime.now() + timedelta(seconds=self.startup_timeout)
+        while datetime.now() < timeout_deadline:
+            sleep(self._READINESS_RETRY_DELAY)
             if self.readiness_probe():
                 return self
 
