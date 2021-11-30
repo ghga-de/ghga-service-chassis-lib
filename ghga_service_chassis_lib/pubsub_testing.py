@@ -32,6 +32,12 @@ import pika
 from testcontainers.core.container import DockerContainer
 
 
+class ReadinessTimeoutError(TimeoutError):
+    """Thrown when readiness probes failed until the startup timeout is reached."""
+
+    pass
+
+
 class RabbitMqContainer(DockerContainer):
     """
     Test container for RabbitMQ.
@@ -76,6 +82,18 @@ class RabbitMqContainer(DockerContainer):
         if config_file_path is not None:
             self.with_env("RABBITMQ_CONFIG_FILE", self.RABBITMQ_CONFIG_FILE)
 
+    def readiness_probe(self) -> bool:
+        """Test if the RabbitMQ broker is ready."""
+        try:
+            connection = pika.BlockingConnection(self.get_connection_params())
+            if connection.is_open:
+                connection.close()
+                return True
+        except pika.exceptions.AMQPConnectionError:
+            pass
+
+        return False
+
     def get_connection_params(self) -> pika.ConnectionParameters:
         """
         Get connection params as a pika.ConnectionParameters object.
@@ -88,17 +106,15 @@ class RabbitMqContainer(DockerContainer):
         )
 
     def start(self):
+        """Start the test container."""
         super().start()
 
         # wait until RabbitMQ is ready:
         for attempt in range(0, 100):
             sleep(0.1)
-            try:
-                connection = pika.BlockingConnection(self.get_connection_params())
-                if connection.is_open:
-                    connection.close()
-                    return self
-            except pika.exceptions.AMQPConnectionError:
-                continue
+            if self.readiness_probe():
+                return self
 
-        raise RuntimeError()
+        raise ReadinessTimeoutError(
+            "The RabbitMQ broker failed to start within the expected time frame."
+        )
