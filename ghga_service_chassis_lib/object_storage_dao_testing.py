@@ -84,20 +84,24 @@ def download_and_check_test_file(presigned_url: str, expected_md5: str):
 
 def populate_storage(
     storage: ObjectStorageDao,
-    fixtures: List[ObjectFixture],
+    bucket_fixtures: List[str],
+    object_fixtures: List[ObjectFixture],
 ):
-    """Populate Storage with ObjectFixtures"""
+    """Populate Storage with object and bucket fixtures"""
 
-    for fixture in fixtures:
-        if not storage.does_bucket_exist(fixture.bucket_id):
-            storage.create_bucket(fixture.bucket_id)
+    for bucket_fixture in bucket_fixtures:
+        storage.create_bucket(bucket_fixture)
+
+    for object_fixture in object_fixtures:
+        if not storage.does_bucket_exist(object_fixture.bucket_id):
+            storage.create_bucket(object_fixture.bucket_id)
 
         presigned_url = storage.get_object_upload_url(
-            bucket_id=fixture.bucket_id, object_id=fixture.object_id
+            bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
         )
 
         upload_file(
             presigned_url=presigned_url,
-            file_path=fixture.file_path,
-            file_md5=fixture.md5,
+            file_path=object_fixture.file_path,
+            file_md5=object_fixture.md5,
         )
