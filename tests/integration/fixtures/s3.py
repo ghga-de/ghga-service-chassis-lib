@@ -13,15 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures for testing the S3 DAO"""
+"""S3 fixtures"""
 
-from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
+from ghga_service_chassis_lib.s3_testing import s3_fixture_factory
 
-from . import BASE_DIR
-from .utils import generate_random_numeric_string
-
-OBJECT_FIXTURE = ObjectFixture(
-    file_path=BASE_DIR / "test_file.yaml",
-    bucket_id="myexistingbucket" + generate_random_numeric_string(),
-    object_id="myexistingobject" + generate_random_numeric_string(),
-)
+s3_fixture = s3_fixture_factory()

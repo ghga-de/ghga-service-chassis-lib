@@ -26,6 +26,7 @@ import requests
 from pydantic import BaseModel, validator
 
 from .object_storage_dao import ObjectStorageDao, PresignedPostURL
+from .utils import TEST_FILE_DIR
 
 
 def calc_md5(content: bytes) -> str:
@@ -80,6 +81,36 @@ def download_and_check_test_file(presigned_url: str, expected_md5: str):
     assert (  # nosec
         observed_md5 == expected_md5
     ), "downloaded file has unexpected md5 checksum"
+
+
+DEFAULT_EXISTING_BUCKETS = ["myexistingtestbucket1", "myexistingtestbucket2"]
+DEFAULT_NON_EXISTING_BUCKETS = ["mynonexistingtestobject1", "mynonexistingtestobject2"]
+
+DEFAULT_EXISTING_OBJECTS = [
+    ObjectFixture(
+        file_path=(TEST_FILE_DIR / "test_file1.yaml"),
+        bucket_id="myexistingtestbucket1",
+        object_id="myexistingtestobject1",
+    ),
+    ObjectFixture(
+        file_path=(TEST_FILE_DIR / "test_file2.yaml"),
+        bucket_id="myexistingtestbucket2",
+        object_id="myexistingtestobject2",
+    ),
+]
+
+DEFAULT_NON_EXISTING_OBJECTS = [
+    ObjectFixture(
+        file_path=(TEST_FILE_DIR / "test_file3.yaml"),
+        bucket_id="mynonexistingtestbucket1",
+        object_id="mynonexistingtestobject1",
+    ),
+    ObjectFixture(
+        file_path=(TEST_FILE_DIR / "test_file4.yaml"),
+        bucket_id="mynonexistingtestbucket2",
+        object_id="mynonexistingtestobject2",
+    ),
+]
 
 
 def populate_storage(
