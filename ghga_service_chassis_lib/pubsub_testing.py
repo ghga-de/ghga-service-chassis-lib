@@ -34,7 +34,7 @@ import pytest
 import pika
 from testcontainers.core.container import DockerContainer
 
-from ghga_service_chassis_lib.utils import raise_on_completion, exec_with_timeout
+from ghga_service_chassis_lib.utils import exec_with_timeout
 
 from .pubsub import PubSubConfigBase, AmqpTopic
 
