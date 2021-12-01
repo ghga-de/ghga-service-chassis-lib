@@ -24,8 +24,6 @@ import jsonschema
 import pika
 from pydantic import BaseSettings
 
-from .pubsub import PubSubConfigBase
-
 
 class PubSubConfigBase(BaseSettings):
     """A base class with config params related to
