@@ -17,7 +17,6 @@
 
 import socket
 from contextlib import closing
-import random
 
 
 def find_free_port():
@@ -26,8 +25,3 @@ def find_free_port():
         sock.bind(("", 0))
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return sock.getsockname()[1]
-
-
-def generate_random_numeric_string(length: int = 10):
-    """Generate a random numeric string with specified length."""
-    return "".join([str(random.choice(range(1, 10))) for i in range(0, length)])

@@ -15,9 +15,13 @@
 
 """General utilities that don't require heavy dependencies."""
 
+from pathlib import Path
+
 from pydantic import BaseSettings
 from typing import Callable, Optional
 import signal
+
+TEST_FILE_DIR = Path(__file__).parent.resolve() / "test_files"
 
 
 class DaoGenericBase:
