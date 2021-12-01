@@ -24,12 +24,8 @@ import multiprocessing
 from datetime import datetime
 from time import sleep
 
-import pytest
-
 from ghga_service_chassis_lib.pubsub import AmqpTopic, PubSubConfigBase
 from ghga_service_chassis_lib.pubsub_testing import RabbitMqContainer
-
-from .fixtures.amqp import MessageSuccessfullyReceived
 
 
 def test_pub_sub():
@@ -82,7 +78,5 @@ def test_pub_sub():
         def process_message(message_received: dict):
             """proccess the message"""
             assert message_received == test_message
-            raise MessageSuccessfullyReceived()
 
-        with pytest.raises(MessageSuccessfullyReceived):
-            topic2.subscribe_for_ever(exec_on_message=process_message)
+        topic2.subscribe(exec_on_message=process_message, run_forever=False)

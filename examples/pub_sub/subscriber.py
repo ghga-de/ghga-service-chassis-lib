@@ -45,7 +45,7 @@ def run():
     )
 
     # subscribe:
-    topic.subscribe_for_ever(exec_on_message=process_message)
+    topic.subscribe(exec_on_message=process_message)
 
 
 if __name__ == "__main__":
