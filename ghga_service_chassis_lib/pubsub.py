@@ -131,6 +131,7 @@ class AmqpTopic:
         self.service_name = config.service_name
         self.topic_name = topic_name
         self.json_schema = json_schema
+        self.sub_queue_name = f"{self.service_name}.{self.topic_name}"
 
     def _create_channel_and_exchange(
         self,
@@ -143,6 +144,36 @@ class AmqpTopic:
 
         # declare an exchange:
         channel.exchange_declare(exchange=self.topic_name, exchange_type="topic")
+
+        return connection, channel
+
+    def init_subscriber_queue(
+        self,
+    ) -> Tuple[pika.BlockingConnection, pika.channel.Channel, str]:
+        """
+        Initialize the queue that is used for subscribing to the topic.
+        This method is called by the `subscribe_for_ever` method.
+        The only reason to use this method outside of `subscribe_for_ever` is if you
+        want to create the queue for subscription without immediatly starting to consume
+        from it.
+
+        Returns a tuple containing:
+            1. the connection to the AMQP broker as pika.BlockingConnection object
+            2. a pika channel object in which the subscriber queue is declared
+        """
+
+        # open a connection, create a channel, and declare an exchange:
+        connection, channel = self._create_channel_and_exchange()
+
+        # declare a new queue:
+        channel.queue_declare(queue=self.sub_queue_name, durable=True)
+
+        # bind the queue to the exchange:
+        channel.queue_bind(
+            exchange=self.topic_name,
+            queue=self.sub_queue_name,
+            routing_key=f"#.{self.topic_name}.#",
+        )
 
         return connection, channel
 
@@ -160,24 +191,12 @@ class AmqpTopic:
                 as a single argument.
         """
 
-        # open a connection, create a channel, and declare an exchange:
-        _, channel = self._create_channel_and_exchange()
-
-        # declare a new queue:
-        queue_name = f"{self.service_name}.{self.topic_name}"
-        channel.queue_declare(queue=queue_name, durable=True)
-
-        # bind the queue to the exchange:
-        channel.queue_bind(
-            exchange=self.topic_name,
-            queue=queue_name,
-            routing_key=f"#.{self.topic_name}.#",
-        )
+        _, channel = self.init_subscriber_queue()
 
         # consume from the channel:
         channel.basic_qos(prefetch_count=1)
         channel.basic_consume(
-            queue=queue_name,
+            queue=self.sub_queue_name,
             on_message_callback=callback_wrapper_factory(
                 exec_on_message=exec_on_message, json_schema=self.json_schema
             ),

@@ -20,11 +20,3 @@ import os
 RABBITMQ_TEST_HOST = (
     os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"
 )
-
-
-class MessageSuccessfullyReceived(RuntimeError):
-    """This Exception can be used to signal that the message
-    was successfully received.
-    """
-
-    ...
