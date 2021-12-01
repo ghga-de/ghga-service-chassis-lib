@@ -25,12 +25,18 @@ from the `pubsub` module.
 
 import os
 from datetime import datetime, timedelta
+from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
-from typing import Optional
+from typing import Callable, Optional, Generator
 
+import pytest
 import pika
 from testcontainers.core.container import DockerContainer
+
+from ghga_service_chassis_lib.utils import raise_on_completion, exec_with_timeout
+
+from .pubsub import PubSubConfigBase, AmqpTopic
 
 
 class ReadinessTimeoutError(TimeoutError):
@@ -139,4 +145,114 @@ class RabbitMqContainer(DockerContainer):
 
         raise ReadinessTimeoutError(
             "The RabbitMQ broker failed to start within the expected time frame."
+        )
+
+
+class MessageSuccessfullyReceived(RuntimeError):
+    """This Exception can be used to signal that the message
+    was successfully received.
+    """
+
+    ...
+
+
+def message_processing_wrapper(
+    func: Callable,
+    received_message: dict,
+    expected_message: dict,
+):
+    """
+    This function is used in the AmqpFixture to wrap the function `func` specified for
+    processing incomming message.
+    """
+    assert (
+        received_message == expected_message
+    ), "The published message did not match the received message."
+
+    func(received_message)
+    raise MessageSuccessfullyReceived()
+
+
+class AmqpFixture:
+    """Info yielded by the `amqp_fixture` function"""
+
+    def __init__(
+        self,
+        subscriber_config: PubSubConfigBase,
+        publisher_config: PubSubConfigBase,
+    ) -> None:
+        """Initialize fixture"""
+        self.subscriber_config = subscriber_config
+        self.publisher_config = publisher_config
+
+    def pubsub_exchange(
+        self,
+        message: dict,
+        exec_on_receive: Callable,
+        message_schema: Optional[dict] = None,
+        timeout_after: int = 2,
+    ):
+        """
+        Publish a message (`message`) and specify a function that is
+        executed once received by the subscriber (`exec_on_receive`).
+        """
+
+        def exchange_message():
+            """inner function for performing the exchange"""
+            # create topic instances used by the subscriber and publisher:
+            subscriber_topic = AmqpTopic(
+                config=self.subscriber_config,
+                topic_name=self.topic_name,
+                json_schema=message_schema,
+            )
+
+            publish_topic = AmqpTopic(
+                config=self.publisher_config,
+                topic_name=self.topic_name,
+                json_schema=message_schema,
+            )
+
+            # initialize subscriber queue so that published messages will be captured:
+            subscriber_topic.init_subscriber_queue()
+
+            # publish message:
+            publish_topic.publish(message)
+
+            # receive topic by expecting the MessageSuccessfullyReceived exception:
+            wrapped_func = lambda received_message: message_processing_wrapper(
+                func=exec_on_receive,
+                received_message=received_message,
+                expected_message=message,
+            )
+
+            with pytest.raises(MessageSuccessfullyReceived):
+                subscriber_topic.subscribe_for_ever(wrapped_func)
+
+        # run the innter function `exchange_message` with a timer:
+        exec_with_timeout(func=exchange_message, timeout_after=timeout_after)
+
+
+@pytest.fixture
+def amqp_fixture(topic_name="my_test_topic") -> Generator[AmqpFixture, None, None]:
+    """Pytest fixture for tests of the Prostgres DAO implementation."""
+
+    with RabbitMqContainer() as rabbitmq:
+        connection_params = rabbitmq.get_connection_params()
+
+        subscriber_config = PubSubConfigBase(
+            rabbitmq_host=connection_params.host,
+            rabbitmq_port=connection_params.port,
+            service_name="test_publisher",
+        )
+
+        publisher_config = PubSubConfigBase(
+            rabbitmq_host=connection_params.host,
+            rabbitmq_port=connection_params.port,
+            service_name="test_publisher",
+        )
+
+        yield AmqpFixture(
+            subscriber_config=subscriber_config,
+            publisher_config=publisher_config,
+            topic_name=topic_name,
         )
