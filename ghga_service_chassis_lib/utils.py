@@ -92,17 +92,15 @@ def exec_with_timeout(
     If the function doesn't finish before the timeout, a TimeoutError is thrown.
     """
 
-    if func_args is None:
-        func_args = []
-    if func_kwargs is None:
-        func_kwargs = {}
+    func_args_ = [] if func_args is None else func_args
+    func_kwargs_ = {} if func_kwargs is None else func_kwargs
 
     # set a timer that raises an exception if timed out
     signal.signal(signal.SIGALRM, raise_timeout_error)
     signal.alarm(timeout_after)
 
     # execute the function
-    result = func(*func_args, **func_kwargs)
+    result = func(*func_args_, **func_kwargs_)
 
     # disable the timer
     signal.alarm(0)

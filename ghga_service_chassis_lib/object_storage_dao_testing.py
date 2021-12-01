@@ -83,8 +83,14 @@ def download_and_check_test_file(presigned_url: str, expected_md5: str):
     ), "downloaded file has unexpected md5 checksum"
 
 
-DEFAULT_EXISTING_BUCKETS = ["myexistingtestbucket1", "myexistingtestbucket2"]
-DEFAULT_NON_EXISTING_BUCKETS = ["mynonexistingtestobject1", "mynonexistingtestobject2"]
+DEFAULT_EXISTING_BUCKETS = [
+    "myexistingtestbucket100",
+    "myexistingtestbucket200",
+]
+DEFAULT_NON_EXISTING_BUCKETS = [
+    "mynonexistingtestobject100",
+    "mynonexistingtestobject200",
+]
 
 DEFAULT_EXISTING_OBJECTS = [
     ObjectFixture(
