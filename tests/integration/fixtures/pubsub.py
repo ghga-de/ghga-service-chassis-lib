@@ -13,18 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utils for Fixture handling"""
+"""Fixtures for pub sub"""
 
-import socket
-from contextlib import closing
-from pathlib import Path
+import json
 
-BASE_DIR = Path(__file__).parent.resolve()
+from ghga_service_chassis_lib.pubsub_testing import amqp_fixture_factory
 
+from .utils import BASE_DIR
 
-def find_free_port():
-    """Find a free port."""
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        sock.bind(("", 0))
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return sock.getsockname()[1]
+EXAMPLE_TOPIC_NAME = "test_topic"
+
+EXAMPLE_MESSAGE = {"greet": "Hello World!"}
+
+EXAMPLE_MESSAGE_SCHEMA_PATH = BASE_DIR / "example_schema.json"
+
+with open(EXAMPLE_MESSAGE_SCHEMA_PATH, "r", encoding="utf8") as schema_file:
+    EXAMPLE_MESSAGE_SCHEMA = json.load(schema_file)
+
+amqp_fixture = amqp_fixture_factory()

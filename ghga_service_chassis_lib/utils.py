@@ -16,12 +16,11 @@
 """General utilities that don't require heavy dependencies."""
 
 import os
+import signal
 from pathlib import Path
-from posix import listdir
+from typing import Callable, Optional
 
 from pydantic import BaseSettings
-from typing import Callable, Optional
-import signal
 
 TEST_FILE_DIR = Path(__file__).parent.resolve() / "test_files"
 
@@ -92,6 +91,12 @@ def exec_with_timeout(
     Exec a function (`func`) with a specified timeout (`timeout_after` in seconds).
     If the function doesn't finish before the timeout, a TimeoutError is thrown.
     """
+
+    if func_args is None:
+        func_args = []
+    if func_kwargs is None:
+        func_kwargs = {}
+
     # set a timer that raises an exception if timed out
     signal.signal(signal.SIGALRM, raise_timeout_error)
     signal.alarm(timeout_after)
@@ -103,3 +108,8 @@ def exec_with_timeout(
     signal.alarm(0)
 
     return result
+
+
+def create_fake_drs_uri(object_id: str):
+    """Create a fake DRS URI based on an object id."""
+    return f"drs://www.example.org/{object_id}"

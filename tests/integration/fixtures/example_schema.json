@@ -1,0 +1,16 @@
+{
+  "$id": "https://raw.githubusercontent.com/ghga-de/ghga-service-chassis-lib/main/tests/integration/fixtures/example_schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "greet": {
+      "description": "Greet the world.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "greet"
+  ],
+  "title": "greet_the_world",
+  "type": "object"
+}

@@ -23,20 +23,20 @@ from the `pubsub` module.
 # pattern.
 # pylint: skip-file
 
+import copy
 import os
 from datetime import datetime, timedelta
-from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
-from typing import Callable, Optional, Generator
+from typing import Generator, Optional
 
-import pytest
 import pika
+import pytest
 from testcontainers.core.container import DockerContainer
 
 from ghga_service_chassis_lib.utils import exec_with_timeout
 
-from .pubsub import PubSubConfigBase, AmqpTopic
+from .pubsub import AmqpTopic, PubSubConfigBase
 
 
 class ReadinessTimeoutError(TimeoutError):
@@ -148,111 +148,203 @@ class RabbitMqContainer(DockerContainer):
         )
 
 
-class MessageSuccessfullyReceived(RuntimeError):
-    """This Exception can be used to signal that the message
-    was successfully received.
-    """
+class TestPubSubClient:
+    """A base class used to simulate publishing or subscribing services."""
 
-    ...
+    def __init__(
+        self,
+        config: PubSubConfigBase,
+        subscriber_service_name: str,
+        topic_name: str,
+        message_schema: Optional[dict] = None,
+    ):
+        """
+        This does not only create a AmqpTopic object that is later used for
+        publishing/subscribing but it also already initializes the channel that will be
+        used for subscription.
+        """
+
+        self.config = config
+        self.topic_name = topic_name
+        self.message_schema = message_schema
+        self.subscriber_service_name = subscriber_service_name
+
+        # create topic later used for publishing/subscribing:
+        self.topic = AmqpTopic(
+            config=self.config,
+            topic_name=self.topic_name,
+            json_schema=self.message_schema,
+        )
+
+        # initialize the channel that is later used for subscription:
+        subscriber_topic: AmqpTopic
+        if self.config.service_name == subscriber_service_name:
+            subscriber_topic = self.topic
+        else:
+            subscriber_config = copy.deepcopy(self.config)
+            subscriber_config.service_name = self.subscriber_service_name
+            subscriber_topic = AmqpTopic(
+                config=subscriber_config,
+                topic_name=self.topic_name,
+            )
+
+        subscriber_topic.init_subscriber_queue()
 
 
-def message_processing_wrapper(
-    func: Callable,
-    received_message: dict,
-    expected_message: dict,
-):
-    """
-    This function is used in the AmqpFixture to wrap the function `func` specified for
-    processing incomming message.
-    """
-    assert (
-        received_message == expected_message
-    ), "The published message did not match the received message."
+class TestPublisher(TestPubSubClient):
+    """A class simulating a service that publishes to the specified topic."""
 
-    func(received_message)
-    raise MessageSuccessfullyReceived()
+    def __init__(
+        self,
+        config: PubSubConfigBase,
+        subscriber_service_name: str,
+        topic_name: str,
+        message_schema: Optional[dict] = None,
+    ):
+        """Initialize the test publisher."""
+        super().__init__(
+            config=config,
+            message_schema=message_schema,
+            topic_name=topic_name,
+            subscriber_service_name=subscriber_service_name,
+        )
+
+    def publish(self, message: dict):
+        """publish a message"""
+
+        self.topic.publish(message)
+
+
+class TestSubscriber(TestPubSubClient):
+    """A class simulating a service that subscribes to the specified topic."""
+
+    def __init__(
+        self,
+        config: PubSubConfigBase,
+        topic_name: str,
+        message_schema: Optional[dict] = None,
+    ):
+        """Initialize the test subscriber."""
+        super().__init__(
+            config=config,
+            message_schema=message_schema,
+            topic_name=topic_name,
+            subscriber_service_name=config.service_name,
+        )
+
+    def subscribe(
+        self,
+        expected_message: Optional[dict] = None,
+        timeout_after: int = 2,
+    ) -> dict:
+        """
+        Subscribe to the channel and expect the specified message (`exected_message`).
+        A TimeoutError is thrown after the specified number of seconds (`timeout_after`).
+        It returns the received message.
+        """
+
+        message_to_return: dict = {}  # will be filled by the `process_message` function
+
+        def process_message(message: dict, update_with_message: dict):
+            """Process the incoming message and update the `update_with_message``
+            with the message content"""
+            if expected_message is not None:
+                assert (  # nosec
+                    message == expected_message
+                ), "The content of the received message didn't match the expectation."
+
+            update_with_message.update(message)
+
+        exec_with_timeout(
+            func=self.topic.subscribe,
+            func_kwargs={
+                "exec_on_message": lambda message: process_message(
+                    message, message_to_return
+                ),
+                "run_forever": False,
+            },
+            timeout_after=timeout_after,
+        )
+
+        # return the `message_to_return` dict that was populated by the
+        # `process_message` function:
+        return message_to_return
 
 
 class AmqpFixture:
     """Info yielded by the `amqp_fixture` function"""
 
-    def __init__(
-        self,
-        subscriber_config: PubSubConfigBase,
-        publisher_config: PubSubConfigBase,
-    ) -> None:
+    def __init__(self, config: PubSubConfigBase) -> None:
         """Initialize fixture"""
-        self.subscriber_config = subscriber_config
-        self.publisher_config = publisher_config
+        self.config = config
 
-    def pubsub_exchange(
+    def get_test_publisher(
         self,
-        message: dict,
-        exec_on_receive: Callable,
+        topic_name: str,
+        service_name: str = "upstream_publisher",
         message_schema: Optional[dict] = None,
-        timeout_after: int = 2,
     ):
         """
-        Publish a message (`message`) and specify a function that is
-        executed once received by the subscriber (`exec_on_receive`).
+        Get a TestPublisher object that simulates a service that publishes to the
+        specified topic.
+        Please note, the function has to be called before calling the subscribing
+        function.
         """
 
-        def exchange_message():
-            """inner function for performing the exchange"""
-            # create topic instances used by the subscriber and publisher:
-            subscriber_topic = AmqpTopic(
-                config=self.subscriber_config,
-                topic_name=self.topic_name,
-                json_schema=message_schema,
-            )
-
-            publish_topic = AmqpTopic(
-                config=self.publisher_config,
-                topic_name=self.topic_name,
-                json_schema=message_schema,
-            )
-
-            # initialize subscriber queue so that published messages will be captured:
-            subscriber_topic.init_subscriber_queue()
-
-            # publish message:
-            publish_topic.publish(message)
-
-            # receive topic by expecting the MessageSuccessfullyReceived exception:
-            wrapped_func = lambda received_message: message_processing_wrapper(
-                func=exec_on_receive,
-                received_message=received_message,
-                expected_message=message,
-            )
-
-            with pytest.raises(MessageSuccessfullyReceived):
-                subscriber_topic.subscribe_for_ever(wrapped_func)
-
-        # run the innter function `exchange_message` with a timer:
-        exec_with_timeout(func=exchange_message, timeout_after=timeout_after)
-
-
-@pytest.fixture
-def amqp_fixture(topic_name="my_test_topic") -> Generator[AmqpFixture, None, None]:
-    """Pytest fixture for tests of the Prostgres DAO implementation."""
-
-    with RabbitMqContainer() as rabbitmq:
-        connection_params = rabbitmq.get_connection_params()
-
-        subscriber_config = PubSubConfigBase(
-            rabbitmq_host=connection_params.host,
-            rabbitmq_port=connection_params.port,
-            service_name="test_publisher",
+        pub_config = PubSubConfigBase(
+            rabbitmq_host=self.config.rabbitmq_host,
+            rabbitmq_port=self.config.rabbitmq_port,
+            service_name=service_name,
         )
 
-        publisher_config = PubSubConfigBase(
-            rabbitmq_host=connection_params.host,
-            rabbitmq_port=connection_params.port,
-            service_name="test_publisher",
-        )
-
-        yield AmqpFixture(
-            subscriber_config=subscriber_config,
-            publisher_config=publisher_config,
+        return TestPublisher(
+            config=pub_config,
+            subscriber_service_name=self.config.service_name,
             topic_name=topic_name,
+            message_schema=message_schema,
         )
+
+    def get_test_subscriber(
+        self,
+        topic_name: str,
+        service_name: str = "downstream_subscriber",
+        message_schema: Optional[dict] = None,
+    ):
+        """
+        Get TestSubscriber object that simulates a service that subscribes to the
+        specified topic.
+        Please note, the function has to be called before publishing a message to the
+        specified topic.
+        """
+        sub_config = PubSubConfigBase(
+            rabbitmq_host=self.config.rabbitmq_host,
+            rabbitmq_port=self.config.rabbitmq_port,
+            service_name=service_name,
+        )
+
+        return TestSubscriber(
+            config=sub_config,
+            topic_name=topic_name,
+            message_schema=message_schema,
+        )
+
+
+def amqp_fixture_factory(service_name: str = "my_service"):
+    """A factory for creating Pytest fixture for working with AMQP."""
+
+    @pytest.fixture
+    def amqp_fixture() -> Generator[AmqpFixture, None, None]:
+        """Pytest fixture for working with AMQP."""
+
+        with RabbitMqContainer() as rabbitmq:
+            connection_params = rabbitmq.get_connection_params()
+
+            config = PubSubConfigBase(
+                rabbitmq_host=connection_params.host,
+                rabbitmq_port=connection_params.port,
+                service_name=service_name,
+            )
+
+            yield AmqpFixture(config=config)
+
+    return amqp_fixture

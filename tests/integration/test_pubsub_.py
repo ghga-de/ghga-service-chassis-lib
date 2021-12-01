@@ -20,25 +20,49 @@ You may also adapt the RabbitMQ host by defining the
 `RABBITMQ_TEST_HOST` environment variable.
 """
 
-import multiprocessing
-from datetime import datetime
-from time import sleep
+from ghga_service_chassis_lib.pubsub import AmqpTopic
+from ghga_service_chassis_lib.utils import exec_with_timeout
 
-import pytest
-
-from ghga_service_chassis_lib.pubsub import AmqpTopic, PubSubConfigBase
-from ghga_service_chassis_lib.pubsub_testing import amqp_fixture
+from .fixtures.pubsub import amqp_fixture  # noqa: F401
+from .fixtures.pubsub import EXAMPLE_MESSAGE, EXAMPLE_MESSAGE_SCHEMA, EXAMPLE_TOPIC_NAME
 
 
-def test_pub_sub(amqp_fixture):
-    """Test basic publish subscribe senario"""
+def test_publishing(amqp_fixture):  # noqa: F811
+    """Test basic publish senario"""
+    downstream_subscriber = amqp_fixture.get_test_subscriber(
+        topic_name=EXAMPLE_TOPIC_NAME,
+        message_schema=EXAMPLE_MESSAGE_SCHEMA,
+    )
 
-    timestamp = str(datetime.now().timestamp())
-    test_message = {"timestamp": timestamp}
+    topic = AmqpTopic(config=amqp_fixture.config, topic_name=EXAMPLE_TOPIC_NAME)
+    topic.publish(EXAMPLE_MESSAGE)
 
-    def process_message(message_received: dict):
-        """proccess the message"""
-        # nothing to do in this simple example
-        pass
+    downstream_subscriber.subscribe(expected_message=EXAMPLE_MESSAGE, timeout_after=2)
 
-    amqp_fixture.pubsub_exchange()
+
+def test_subscribing(amqp_fixture):  # noqa: F811
+    """Test basic subscribe senario"""
+    upstream_publisher = amqp_fixture.get_test_publisher(
+        topic_name=EXAMPLE_TOPIC_NAME,
+        message_schema=EXAMPLE_MESSAGE_SCHEMA,
+    )
+
+    upstream_publisher.publish(EXAMPLE_MESSAGE)
+
+    def process_message(message: dict):
+        """Process the incomming message."""
+        assert (
+            message == EXAMPLE_MESSAGE
+        ), "The content of the received message did not match the expectations."
+
+    topic = AmqpTopic(
+        config=amqp_fixture.config,
+        topic_name=EXAMPLE_TOPIC_NAME,
+        json_schema=EXAMPLE_MESSAGE_SCHEMA,
+    )
+    exec_with_timeout(
+        func=lambda: topic.subscribe(
+            exec_on_message=process_message, run_forever=False
+        ),
+        timeout_after=2,
+    )

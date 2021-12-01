@@ -158,7 +158,7 @@ class AmqpTopic:
 
     def init_subscriber_queue(
         self,
-    ) -> Tuple[pika.BlockingConnection, pika.channel.Channel, str]:
+    ) -> Tuple[pika.BlockingConnection, pika.channel.Channel]:
         """
         Initialize the queue that is used for subscribing to the topic.
         This method is called by the `subscribe_for_ever` method.
