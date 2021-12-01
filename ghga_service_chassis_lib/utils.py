@@ -15,13 +15,21 @@
 
 """General utilities that don't require heavy dependencies."""
 
+import os
 from pathlib import Path
+from posix import listdir
 
 from pydantic import BaseSettings
 from typing import Callable, Optional
 import signal
 
 TEST_FILE_DIR = Path(__file__).parent.resolve() / "test_files"
+
+TEST_FILE_PATHS = [
+    TEST_FILE_DIR / filename
+    for filename in os.listdir(TEST_FILE_DIR)
+    if filename.startswith("test_") and filename.endswith(".yaml")
+]
 
 
 class DaoGenericBase:
