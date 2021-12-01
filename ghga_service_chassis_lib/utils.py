@@ -15,7 +15,11 @@
 
 """General utilities that don't require heavy dependencies."""
 
+from pathlib import Path
+
 from pydantic import BaseSettings
+
+TEST_FILE_DIR = Path(__file__).parent.resolve() / "test_files"
 
 
 class DaoGenericBase:
