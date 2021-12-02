@@ -58,12 +58,18 @@ def validate_message(
         return False
 
 
-def callback_wrapper_factory(
-    exec_on_message: Callable, json_schema: Optional[dict] = None
+def callback_factory(
+    exec_on_message: Callable,
+    json_schema: Optional[dict] = None,
+    stop_on_consume: bool = False,
 ) -> Callable:
-    """Generates a callback function that is executed whenever a message reaches
+    """
+    Generates a callback function that is executed whenever a message reaches
     the queue. It performs logging, message validation against a json schema (if provided)
-    and, finally, executes the function `exec_on_message`."""
+    and, finally, executes the function `exec_on_message`.
+    If `stop_on_cosume` is set to `True`, a signal is sends that terminates the
+    `channel.start_consuming()` loop.
+    """
 
     def callback(
         channel: pika.channel.Channel,
@@ -73,6 +79,9 @@ def callback_wrapper_factory(
     ):
         """A wrapper around the actual function that is executed
         once a message arrives:"""
+
+        if stop_on_consume:
+            channel.stop_consuming()
 
         logging.info(
             " [x] %s: Message received",
@@ -146,10 +155,7 @@ class AmqpTopic:
 
         return connection, channel
 
-    def subscribe_for_ever(
-        self,
-        exec_on_message: Callable,
-    ):
+    def subscribe(self, exec_on_message: Callable, run_forever: bool = True):
         """Subscribe to a topic and execute the specified function whenever
         a message is received.
 
@@ -158,6 +164,10 @@ class AmqpTopic:
                 A callable that is executed whenever a message is received.
                 This function should take the message payload (as dictionary)
                 as a single argument.
+            run_forever (bool):
+                If `True`, the function will continue to consume messages for ever.
+                If `False`, the function will wait for the first message, cosume it,
+                and exit. Defaults to `True`.
         """
 
         # open a connection, create a channel, and declare an exchange:
@@ -178,8 +188,10 @@ class AmqpTopic:
         channel.basic_qos(prefetch_count=1)
         channel.basic_consume(
             queue=queue_name,
-            on_message_callback=callback_wrapper_factory(
-                exec_on_message=exec_on_message, json_schema=self.json_schema
+            on_message_callback=callback_factory(
+                exec_on_message=exec_on_message,
+                json_schema=self.json_schema,
+                stop_on_consume=not run_forever,
             ),
         )
         logging.info(
