@@ -20,7 +20,6 @@ Test S3 storage DAO
 from pathlib import Path
 
 import pytest
-from testcontainers.localstack import LocalStackContainer
 
 from ghga_service_chassis_lib.object_storage_dao import (
     BucketAlreadyExists,
@@ -30,14 +29,12 @@ from ghga_service_chassis_lib.object_storage_dao import (
     ObjectStorageDao,
 )
 from ghga_service_chassis_lib.object_storage_dao_testing import (
+    DEFAULT_NON_EXISTING_OBJECTS,
     download_and_check_test_file,
-    populate_storage,
     upload_file,
 )
-from ghga_service_chassis_lib.s3 import ObjectStorageS3
-from ghga_service_chassis_lib.s3_testing import config_from_localstack_container
 
-from .fixtures.storage import OBJECT_FIXTURE
+from .fixtures.s3 import s3_fixture  # noqa: F401
 
 
 # This workflow is defined as a seperate function so that it can also be used
@@ -46,9 +43,9 @@ def typical_workflow(
     storage_client: ObjectStorageDao,
     bucket1_id: str = "mytestbucket1",
     bucket2_id: str = "mytestbucket2",
-    object_id: str = "mytestfile",
-    test_file_path: Path = OBJECT_FIXTURE.file_path,
-    test_file_md5: str = OBJECT_FIXTURE.md5,
+    object_id: str = DEFAULT_NON_EXISTING_OBJECTS[0].object_id,
+    test_file_path: Path = DEFAULT_NON_EXISTING_OBJECTS[0].file_path,
+    test_file_md5: str = DEFAULT_NON_EXISTING_OBJECTS[0].md5,
 ):
     """
     Run a typical workflow of basic object operations using a S3 service.
@@ -113,107 +110,96 @@ def typical_workflow(
     print("Done.")
 
 
-def test_typical_workflow():
+def test_typical_workflow(s3_fixture):  # noqa: F811
     """
     Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
     """
-    with LocalStackContainer().with_services("s3") as localstack:
-        config = config_from_localstack_container(localstack)
+    object_fixture = s3_fixture.non_existing_objects[0]
+    typical_workflow(
+        storage_client=s3_fixture.storage,
+        bucket1_id=s3_fixture.non_existing_buckets[0],
+        bucket2_id=s3_fixture.non_existing_buckets[1],
+        object_id=object_fixture.object_id,
+        test_file_md5=object_fixture.md5,
+        test_file_path=object_fixture.file_path,
+    )
 
-        with ObjectStorageS3(config=config) as storage:
-            typical_workflow(storage)
 
-
-def test_object_and_bucket_collisions():
+def test_object_and_bucket_collisions(s3_fixture):  # noqa: F811
     """
     Tests whether overwriting (re-creation, re-upload, or copy to exisitng object) fails with the expected error.
     """
+    existing_object = s3_fixture.existing_objects[0]
 
-    with LocalStackContainer().with_services("s3") as localstack:
-        existing_bucket_id = OBJECT_FIXTURE.bucket_id
-        existing_object_id = OBJECT_FIXTURE.object_id
-        config = config_from_localstack_container(localstack)
+    with pytest.raises(BucketAlreadyExists):
+        s3_fixture.storage.create_bucket(existing_object.bucket_id)
 
-        with ObjectStorageS3(config=config) as storage:
-            populate_storage(
-                storage=storage,
-                fixtures=[OBJECT_FIXTURE],
-            )
+    with pytest.raises(ObjectAlreadyExistsError):
+        s3_fixture.storage.get_object_upload_url(
+            bucket_id=existing_object.bucket_id, object_id=existing_object.object_id
+        )
 
-            with pytest.raises(BucketAlreadyExists):
-                storage.create_bucket(existing_bucket_id)
-
-            with pytest.raises(ObjectAlreadyExistsError):
-                storage.get_object_upload_url(
-                    bucket_id=existing_bucket_id, object_id=existing_object_id
-                )
-
-            with pytest.raises(ObjectAlreadyExistsError):
-                storage.copy_object(
-                    source_bucket_id=existing_bucket_id,
-                    source_object_id=existing_object_id,
-                    dest_bucket_id=existing_bucket_id,
-                    dest_object_id=existing_object_id,
-                )
+    with pytest.raises(ObjectAlreadyExistsError):
+        s3_fixture.storage.copy_object(
+            source_bucket_id=existing_object.bucket_id,
+            source_object_id=existing_object.object_id,
+            dest_bucket_id=existing_object.bucket_id,
+            dest_object_id=existing_object.object_id,
+        )
 
 
-def test_handling_non_existing_file_and_bucket():
+def test_handling_non_existing_file_and_bucket(s3_fixture):  # noqa: F811
     """
     Tests whether the re-creaction of an existing bucket fails with the expected error.
     """
-    with LocalStackContainer().with_services("s3") as localstack:
-        non_exisiting_bucket_id = "mynonexistingbucket"
-        non_existing_object_id = "mynonexistingobject"
-        existing_bucket_id = OBJECT_FIXTURE.bucket_id
-        existing_object_id = OBJECT_FIXTURE.object_id
-        config = config_from_localstack_container(localstack)
+    existing_bucket = s3_fixture.existing_buckets[-1]
+    existing_object = s3_fixture.existing_objects[0]
+    existing_object_id = s3_fixture.existing_objects[0].object_id
+    non_existing_object = s3_fixture.non_existing_objects[0]
 
-        with ObjectStorageS3(config=config) as storage:
-            populate_storage(
-                storage=storage,
-                fixtures=[OBJECT_FIXTURE],
-            )
+    with pytest.raises(BucketNotFoundError):
+        s3_fixture.storage.delete_bucket(non_existing_object.bucket_id)
 
-            with pytest.raises(BucketNotFoundError):
-                storage.delete_bucket(non_exisiting_bucket_id)
+    with pytest.raises(BucketNotFoundError):
+        s3_fixture.storage.get_object_download_url(
+            bucket_id=non_existing_object.bucket_id,
+            object_id=non_existing_object.object_id,
+        )
 
-            with pytest.raises(BucketNotFoundError):
-                storage.get_object_download_url(
-                    bucket_id=non_exisiting_bucket_id, object_id=non_existing_object_id
-                )
+    with pytest.raises(BucketNotFoundError):
+        s3_fixture.storage.get_object_upload_url(
+            bucket_id=non_existing_object.bucket_id,
+            object_id=non_existing_object.object_id,
+        )
 
-            with pytest.raises(BucketNotFoundError):
-                storage.get_object_upload_url(
-                    bucket_id=non_exisiting_bucket_id, object_id=non_existing_object_id
-                )
+    with pytest.raises(BucketNotFoundError):
+        s3_fixture.storage.delete_object(
+            bucket_id=non_existing_object.bucket_id,
+            object_id=non_existing_object.object_id,
+        )
 
-            with pytest.raises(BucketNotFoundError):
-                storage.delete_object(
-                    bucket_id=non_exisiting_bucket_id, object_id=non_existing_object_id
-                )
+    with pytest.raises(BucketNotFoundError):
+        s3_fixture.storage.copy_object(
+            source_bucket_id=non_existing_object.bucket_id,
+            source_object_id=non_existing_object.object_id,
+            dest_bucket_id=existing_bucket,
+            dest_object_id=non_existing_object.object_id,
+        )
 
-            with pytest.raises(BucketNotFoundError):
-                storage.copy_object(
-                    source_bucket_id=non_exisiting_bucket_id,
-                    source_object_id=non_existing_object_id,
-                    dest_bucket_id=existing_bucket_id,
-                    dest_object_id=non_existing_object_id,
-                )
+    with pytest.raises(BucketNotFoundError):
+        s3_fixture.storage.copy_object(
+            source_bucket_id=existing_object.bucket_id,
+            source_object_id=existing_object_id,
+            dest_bucket_id=non_existing_object.bucket_id,
+            dest_object_id=non_existing_object.object_id,
+        )
 
-            with pytest.raises(BucketNotFoundError):
-                storage.copy_object(
-                    source_bucket_id=existing_bucket_id,
-                    source_object_id=existing_object_id,
-                    dest_bucket_id=non_exisiting_bucket_id,
-                    dest_object_id=non_existing_object_id,
-                )
+    with pytest.raises(ObjectNotFoundError):
+        s3_fixture.storage.get_object_download_url(
+            bucket_id=existing_object.bucket_id, object_id=non_existing_object.object_id
+        )
 
-            with pytest.raises(ObjectNotFoundError):
-                storage.get_object_download_url(
-                    bucket_id=existing_bucket_id, object_id=non_existing_object_id
-                )
-
-            with pytest.raises(ObjectNotFoundError):
-                storage.delete_object(
-                    bucket_id=existing_bucket_id, object_id=non_existing_object_id
-                )
+    with pytest.raises(ObjectNotFoundError):
+        s3_fixture.storage.delete_object(
+            bucket_id=existing_object.bucket_id, object_id=non_existing_object.object_id
+        )

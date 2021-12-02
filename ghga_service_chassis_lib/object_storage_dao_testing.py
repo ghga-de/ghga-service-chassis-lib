@@ -26,6 +26,7 @@ import requests
 from pydantic import BaseModel, validator
 
 from .object_storage_dao import ObjectStorageDao, PresignedPostURL
+from .utils import TEST_FILE_PATHS
 
 
 def calc_md5(content: bytes) -> str:
@@ -82,22 +83,54 @@ def download_and_check_test_file(presigned_url: str, expected_md5: str):
     ), "downloaded file has unexpected md5 checksum"
 
 
+DEFAULT_EXISTING_BUCKETS = [
+    "myexistingtestbucket100",
+    "myexistingtestbucket200",
+]
+DEFAULT_NON_EXISTING_BUCKETS = [
+    "mynonexistingtestobject100",
+    "mynonexistingtestobject200",
+]
+
+DEFAULT_EXISTING_OBJECTS = [
+    ObjectFixture(
+        file_path=file_path,
+        bucket_id=f"myexistingtestbucket{idx}",
+        object_id=f"myexistingtestobject{idx}",
+    )
+    for idx, file_path in enumerate(TEST_FILE_PATHS[0:2])
+]
+
+DEFAULT_NON_EXISTING_OBJECTS = [
+    ObjectFixture(
+        file_path=file_path,
+        bucket_id=f"mynonexistingtestbucket{idx}",
+        object_id=f"mynonexistingtestobject{idx}",
+    )
+    for idx, file_path in enumerate(TEST_FILE_PATHS[2:4])
+]
+
+
 def populate_storage(
     storage: ObjectStorageDao,
-    fixtures: List[ObjectFixture],
+    bucket_fixtures: List[str],
+    object_fixtures: List[ObjectFixture],
 ):
-    """Populate Storage with ObjectFixtures"""
+    """Populate Storage with object and bucket fixtures"""
 
-    for fixture in fixtures:
-        if not storage.does_bucket_exist(fixture.bucket_id):
-            storage.create_bucket(fixture.bucket_id)
+    for bucket_fixture in bucket_fixtures:
+        storage.create_bucket(bucket_fixture)
+
+    for object_fixture in object_fixtures:
+        if not storage.does_bucket_exist(object_fixture.bucket_id):
+            storage.create_bucket(object_fixture.bucket_id)
 
         presigned_url = storage.get_object_upload_url(
-            bucket_id=fixture.bucket_id, object_id=fixture.object_id
+            bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
         )
 
         upload_file(
             presigned_url=presigned_url,
-            file_path=fixture.file_path,
-            file_md5=fixture.md5,
+            file_path=object_fixture.file_path,
+            file_md5=object_fixture.md5,
         )

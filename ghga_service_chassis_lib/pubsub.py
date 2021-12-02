@@ -17,9 +17,8 @@
 
 import json
 import logging
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Optional, Tuple, Type
+from typing import Callable, Optional, Tuple
 
 import jsonschema
 import pika
@@ -32,6 +31,7 @@ class PubSubConfigBase(BaseSettings):
     Inherit your config class from this class if you need
     to run an async PubSub API."""
 
+    service_name: str
     rabbitmq_host: str = "rabbitmq"
     rabbitmq_port: int = 5672
 
@@ -58,12 +58,18 @@ def validate_message(
         return False
 
 
-def callback_wrapper_factory(
-    exec_on_message: Callable, json_schema: Optional[dict] = None
+def callback_factory(
+    exec_on_message: Callable,
+    json_schema: Optional[dict] = None,
+    stop_on_consume: bool = False,
 ) -> Callable:
-    """Generates a callback function that is executed whenever a message reaches
+    """
+    Generates a callback function that is executed whenever a message reaches
     the queue. It performs logging, message validation against a json schema (if provided)
-    and, finally, executes the function `exec_on_message`."""
+    and, finally, executes the function `exec_on_message`.
+    If `stop_on_cosume` is set to `True`, a signal is sends that terminates the
+    `channel.start_consuming()` loop.
+    """
 
     def callback(
         channel: pika.channel.Channel,
@@ -73,6 +79,9 @@ def callback_wrapper_factory(
     ):
         """A wrapper around the actual function that is executed
         once a message arrives:"""
+
+        if stop_on_consume:
+            channel.stop_consuming()
 
         logging.info(
             " [x] %s: Message received",
@@ -96,26 +105,9 @@ def callback_wrapper_factory(
     return callback
 
 
-@dataclass
 class AmqpTopic:
     """A base class to connect and iteract to/with a RabbitMQ host
     via the `topic` exchange type.
-
-    Args:
-        connection_params [Type(pika.connection.Parameters)]:
-            An object of class pika.connection.Parameters that configures
-            the connection to the RabbitMQ broker.
-        topic_name (str):
-            The name of the topic (only use letters, numbers, and "_").
-            The queue binding key as well as the names for the associated exchange
-            and queue will be derived from this string.
-        service_name (str):
-            A name that uniquely identifies the service. This will be used to
-            ensure that messages will not be duplicates between instances of
-            the same service.
-        json_schema (Optional[dict]):
-            Optional. If provided, the message body will be validated against this
-            json schema.
 
     Naming patterns for Exchanges and Queues:
         Exchanges will always be named according to the `topic_name`.
@@ -123,10 +115,32 @@ class AmqpTopic:
         and the `topic_name`
     """
 
-    connection_params: Type[pika.connection.Parameters]
-    topic_name: str
-    service_name: str
-    json_schema: Optional[dict] = None
+    def __init__(
+        self,
+        config: PubSubConfigBase,
+        topic_name: str,
+        json_schema: Optional[dict] = None,
+    ):
+        """Initialize the AMQP topic.
+
+        Args:
+            config [PubSubConfigBase]:
+                Config paramaters provided as PubSubConfigBase object.
+            topic_name (str):
+                The name of the topic (only use letters, numbers, and "_").
+                The queue binding key as well as the names for the associated exchange
+                and queue will be derived from this string.
+            json_schema (Optional[dict]):
+                Optional. If provided, the message body will be validated against this
+                json schema.
+        """
+        self.connection_params = pika.ConnectionParameters(
+            host=config.rabbitmq_host, port=config.rabbitmq_port
+        )
+        self.service_name = config.service_name
+        self.topic_name = topic_name
+        self.json_schema = json_schema
+        self.sub_queue_name = f"{self.service_name}.{self.topic_name}"
 
     def _create_channel_and_exchange(
         self,
@@ -142,10 +156,37 @@ class AmqpTopic:
 
         return connection, channel
 
-    def subscribe_for_ever(
+    def init_subscriber_queue(
         self,
-        exec_on_message: Callable,
-    ):
+    ) -> Tuple[pika.BlockingConnection, pika.channel.Channel]:
+        """
+        Initialize the queue that is used for subscribing to the topic.
+        This method is called by the `subscribe_for_ever` method.
+        The only reason to use this method outside of `subscribe_for_ever` is if you
+        want to create the queue for subscription without immediatly starting to consume
+        from it.
+
+        Returns a tuple containing:
+            1. the connection to the AMQP broker as pika.BlockingConnection object
+            2. a pika channel object in which the subscriber queue is declared
+        """
+
+        # open a connection, create a channel, and declare an exchange:
+        connection, channel = self._create_channel_and_exchange()
+
+        # declare a new queue:
+        channel.queue_declare(queue=self.sub_queue_name, durable=True)
+
+        # bind the queue to the exchange:
+        channel.queue_bind(
+            exchange=self.topic_name,
+            queue=self.sub_queue_name,
+            routing_key=f"#.{self.topic_name}.#",
+        )
+
+        return connection, channel
+
+    def subscribe(self, exec_on_message: Callable, run_forever: bool = True):
         """Subscribe to a topic and execute the specified function whenever
         a message is received.
 
@@ -154,35 +195,31 @@ class AmqpTopic:
                 A callable that is executed whenever a message is received.
                 This function should take the message payload (as dictionary)
                 as a single argument.
+            run_forever (bool):
+                If `True`, the function will continue to consume messages for ever.
+                If `False`, the function will wait for the first message, cosume it,
+                and exit. Defaults to `True`.
         """
 
-        # open a connection, create a channel, and declare an exchange:
-        _, channel = self._create_channel_and_exchange()
-
-        # declare a new queue:
-        queue_name = f"{self.service_name}.{self.topic_name}"
-        channel.queue_declare(queue=queue_name, durable=True)
-
-        # bind the queue to the exchange:
-        channel.queue_bind(
-            exchange=self.topic_name,
-            queue=queue_name,
-            routing_key=f"#.{self.topic_name}.#",
-        )
+        _, channel = self.init_subscriber_queue()
 
         # consume from the channel:
         channel.basic_qos(prefetch_count=1)
         channel.basic_consume(
-            queue=queue_name,
-            on_message_callback=callback_wrapper_factory(
-                exec_on_message=exec_on_message, json_schema=self.json_schema
+            queue=self.sub_queue_name,
+            on_message_callback=callback_factory(
+                exec_on_message=exec_on_message,
+                json_schema=self.json_schema,
+                stop_on_consume=not run_forever,
             ),
         )
+
         logging.info(
             ' [*] %s: Waiting for messages in topic "%s".',
             datetime.now().isoformat(timespec="milliseconds"),
             self.topic_name,
         )
+
         channel.start_consuming()
 
     def publish(self, message: dict):

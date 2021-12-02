@@ -18,9 +18,7 @@
 import json
 from pathlib import Path
 
-import pika
-
-from ghga_service_chassis_lib.pubsub import AmqpTopic
+from ghga_service_chassis_lib.pubsub import AmqpTopic, PubSubConfigBase
 
 HERE = Path(__file__).parent.resolve()
 
@@ -39,15 +37,15 @@ def run():
         message_schema = json.load(schema_file)
 
     # create a topic object:
+    config = PubSubConfigBase(service_name="subscriber")
     topic = AmqpTopic(
-        connection_params=pika.ConnectionParameters(host="rabbitmq"),
+        config=config,
         topic_name="my_topic",
-        service_name="subscriber",
         json_schema=message_schema,
     )
 
     # subscribe:
-    topic.subscribe_for_ever(exec_on_message=process_message)
+    topic.subscribe(exec_on_message=process_message)
 
 
 if __name__ == "__main__":

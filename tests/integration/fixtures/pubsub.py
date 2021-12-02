@@ -13,10 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""RabbitMQ fixtures"""
+"""Fixtures for pub sub"""
 
-import os
+import json
 
-RABBITMQ_TEST_HOST = (
-    os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"
-)
+from ghga_service_chassis_lib.pubsub_testing import amqp_fixture_factory
+
+from .utils import BASE_DIR
+
+EXAMPLE_TOPIC_NAME = "test_topic"
+
+EXAMPLE_MESSAGE = {"greet": "Hello World!"}
+
+EXAMPLE_MESSAGE_SCHEMA_PATH = BASE_DIR / "example_schema.json"
+
+with open(EXAMPLE_MESSAGE_SCHEMA_PATH, "r", encoding="utf8") as schema_file:
+    EXAMPLE_MESSAGE_SCHEMA = json.load(schema_file)
+
+amqp_fixture = amqp_fixture_factory()

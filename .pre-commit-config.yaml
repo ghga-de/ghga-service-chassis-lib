@@ -19,6 +19,7 @@ repos:
       - id: check-json
         exclude: "devcontainer.json"
       - id: pretty-format-json
+        args: [--autofix]
         exclude: "devcontainer.json"
       - id: check-merge-conflict
       - id: check-symlinks
