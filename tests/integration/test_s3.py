@@ -129,23 +129,22 @@ def test_object_and_bucket_collisions(s3_fixture):  # noqa: F811
     """
     Tests whether overwriting (re-creation, re-upload, or copy to exisitng object) fails with the expected error.
     """
-    existing_bucket_id = s3_fixture.existing_buckets[0]
-    existing_object_id = s3_fixture.existing_objects[0].object_id
+    existing_object = s3_fixture.existing_objects[0]
 
     with pytest.raises(BucketAlreadyExists):
-        s3_fixture.storage.create_bucket(existing_bucket_id)
+        s3_fixture.storage.create_bucket(existing_object.bucket_id)
 
     with pytest.raises(ObjectAlreadyExistsError):
         s3_fixture.storage.get_object_upload_url(
-            bucket_id=existing_bucket_id, object_id=existing_object_id
+            bucket_id=existing_object.bucket_id, object_id=existing_object.object_id
         )
 
     with pytest.raises(ObjectAlreadyExistsError):
         s3_fixture.storage.copy_object(
-            source_bucket_id=existing_bucket_id,
-            source_object_id=existing_object_id,
-            dest_bucket_id=existing_bucket_id,
-            dest_object_id=existing_object_id,
+            source_bucket_id=existing_object.bucket_id,
+            source_object_id=existing_object.object_id,
+            dest_bucket_id=existing_object.bucket_id,
+            dest_object_id=existing_object.object_id,
         )
 
 
@@ -153,51 +152,54 @@ def test_handling_non_existing_file_and_bucket(s3_fixture):  # noqa: F811
     """
     Tests whether the re-creaction of an existing bucket fails with the expected error.
     """
-    existing_bucket_id = s3_fixture.existing_buckets[0]
+    existing_bucket = s3_fixture.existing_buckets[-1]
+    existing_object = s3_fixture.existing_objects[0]
     existing_object_id = s3_fixture.existing_objects[0].object_id
-    non_exisiting_bucket_id = s3_fixture.non_existing_buckets[0]
-    non_existing_object_id = s3_fixture.non_existing_objects[0].object_id
+    non_existing_object = s3_fixture.non_existing_objects[0]
 
     with pytest.raises(BucketNotFoundError):
-        s3_fixture.storage.delete_bucket(non_exisiting_bucket_id)
+        s3_fixture.storage.delete_bucket(non_existing_object.bucket_id)
 
     with pytest.raises(BucketNotFoundError):
         s3_fixture.storage.get_object_download_url(
-            bucket_id=non_exisiting_bucket_id, object_id=non_existing_object_id
+            bucket_id=non_existing_object.bucket_id,
+            object_id=non_existing_object.object_id,
         )
 
     with pytest.raises(BucketNotFoundError):
         s3_fixture.storage.get_object_upload_url(
-            bucket_id=non_exisiting_bucket_id, object_id=non_existing_object_id
+            bucket_id=non_existing_object.bucket_id,
+            object_id=non_existing_object.object_id,
         )
 
     with pytest.raises(BucketNotFoundError):
         s3_fixture.storage.delete_object(
-            bucket_id=non_exisiting_bucket_id, object_id=non_existing_object_id
+            bucket_id=non_existing_object.bucket_id,
+            object_id=non_existing_object.object_id,
         )
 
     with pytest.raises(BucketNotFoundError):
         s3_fixture.storage.copy_object(
-            source_bucket_id=non_exisiting_bucket_id,
-            source_object_id=non_existing_object_id,
-            dest_bucket_id=existing_bucket_id,
-            dest_object_id=non_existing_object_id,
+            source_bucket_id=non_existing_object.bucket_id,
+            source_object_id=non_existing_object.object_id,
+            dest_bucket_id=existing_bucket,
+            dest_object_id=non_existing_object.object_id,
         )
 
     with pytest.raises(BucketNotFoundError):
         s3_fixture.storage.copy_object(
-            source_bucket_id=existing_bucket_id,
+            source_bucket_id=existing_object.bucket_id,
             source_object_id=existing_object_id,
-            dest_bucket_id=non_exisiting_bucket_id,
-            dest_object_id=non_existing_object_id,
+            dest_bucket_id=non_existing_object.bucket_id,
+            dest_object_id=non_existing_object.object_id,
         )
 
     with pytest.raises(ObjectNotFoundError):
         s3_fixture.storage.get_object_download_url(
-            bucket_id=existing_bucket_id, object_id=non_existing_object_id
+            bucket_id=existing_object.bucket_id, object_id=non_existing_object.object_id
         )
 
     with pytest.raises(ObjectNotFoundError):
         s3_fixture.storage.delete_object(
-            bucket_id=existing_bucket_id, object_id=non_existing_object_id
+            bucket_id=existing_object.bucket_id, object_id=non_existing_object.object_id
         )

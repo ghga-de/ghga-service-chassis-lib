@@ -26,7 +26,7 @@ import requests
 from pydantic import BaseModel, validator
 
 from .object_storage_dao import ObjectStorageDao, PresignedPostURL
-from .utils import TEST_FILE_DIR
+from .utils import TEST_FILE_PATHS
 
 
 def calc_md5(content: bytes) -> str:
@@ -83,33 +83,31 @@ def download_and_check_test_file(presigned_url: str, expected_md5: str):
     ), "downloaded file has unexpected md5 checksum"
 
 
-DEFAULT_EXISTING_BUCKETS = ["myexistingtestbucket1", "myexistingtestbucket2"]
-DEFAULT_NON_EXISTING_BUCKETS = ["mynonexistingtestobject1", "mynonexistingtestobject2"]
+DEFAULT_EXISTING_BUCKETS = [
+    "myexistingtestbucket100",
+    "myexistingtestbucket200",
+]
+DEFAULT_NON_EXISTING_BUCKETS = [
+    "mynonexistingtestobject100",
+    "mynonexistingtestobject200",
+]
 
 DEFAULT_EXISTING_OBJECTS = [
     ObjectFixture(
-        file_path=(TEST_FILE_DIR / "test_file1.yaml"),
-        bucket_id="myexistingtestbucket1",
-        object_id="myexistingtestobject1",
-    ),
-    ObjectFixture(
-        file_path=(TEST_FILE_DIR / "test_file2.yaml"),
-        bucket_id="myexistingtestbucket2",
-        object_id="myexistingtestobject2",
-    ),
+        file_path=file_path,
+        bucket_id=f"myexistingtestbucket{idx}",
+        object_id=f"myexistingtestobject{idx}",
+    )
+    for idx, file_path in enumerate(TEST_FILE_PATHS[0:2])
 ]
 
 DEFAULT_NON_EXISTING_OBJECTS = [
     ObjectFixture(
-        file_path=(TEST_FILE_DIR / "test_file3.yaml"),
-        bucket_id="mynonexistingtestbucket1",
-        object_id="mynonexistingtestobject1",
-    ),
-    ObjectFixture(
-        file_path=(TEST_FILE_DIR / "test_file4.yaml"),
-        bucket_id="mynonexistingtestbucket2",
-        object_id="mynonexistingtestobject2",
-    ),
+        file_path=file_path,
+        bucket_id=f"mynonexistingtestbucket{idx}",
+        object_id=f"mynonexistingtestobject{idx}",
+    )
+    for idx, file_path in enumerate(TEST_FILE_PATHS[2:4])
 ]
 
 

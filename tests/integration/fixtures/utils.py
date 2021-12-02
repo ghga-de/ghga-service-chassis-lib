@@ -17,6 +17,9 @@
 
 import socket
 from contextlib import closing
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.resolve()
 
 
 def find_free_port():

@@ -12,11 +12,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""RabbitMQ fixtures"""
-
-import os
-
-RABBITMQ_TEST_HOST = (
-    os.getenv("RABBITMQ_TEST_HOST") if os.getenv("RABBITMQ_TEST_HOST") else "localhost"
-)

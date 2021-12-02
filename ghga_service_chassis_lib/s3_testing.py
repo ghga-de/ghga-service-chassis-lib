@@ -18,7 +18,6 @@ This module contains utilities for testing code created with the functionality
 from the `s3` module.
 """
 
-import copy
 from dataclasses import dataclass
 from typing import Generator, List, Optional
 
@@ -45,19 +44,6 @@ def config_from_localstack_container(container: LocalStackContainer) -> S3Config
         s3_access_key_id="test",
         s3_secret_access_key="test",
     )
-
-
-def merge_bucket_lists(
-    bucket_list: List[str], object_list: List[ObjectFixture]
-) -> List[str]:
-    """Add buckets used in the members of the `object_list` to the `bucket_list`."""
-    bucket_list_extended: List[str] = copy.deepcopy(bucket_list)
-
-    for object_ in object_list:
-        if object_.bucket_id not in bucket_list_extended:
-            bucket_list_extended.append(object_.bucket_id)
-
-    return bucket_list_extended
 
 
 @dataclass
@@ -113,22 +99,15 @@ def s3_fixture_factory(
                     object_fixtures=existing_objects_,
                 )
 
-                # curate and check bucket lists:
-                existing_buckets_extended = merge_bucket_lists(
-                    existing_buckets_, existing_objects_
-                )
-                non_existing_buckets_extended = merge_bucket_lists(
-                    non_existing_buckets_, non_existing_objects_
-                )
-                assert not set(existing_buckets_extended) & set(  # nosec
-                    non_existing_buckets_extended
+                assert not set(existing_buckets_) & set(  # nosec
+                    non_existing_buckets_
                 ), "The existing and non existing bucket lists may not overlap"
 
                 yield S3Fixture(
                     config=config,
                     storage=storage,
-                    existing_buckets=existing_buckets_extended,
-                    non_existing_buckets=non_existing_buckets_extended,
+                    existing_buckets=existing_buckets_,
+                    non_existing_buckets=non_existing_buckets_,
                     existing_objects=existing_objects_,
                     non_existing_objects=non_existing_objects_,
                 )
