@@ -16,7 +16,7 @@
 """Functionality for initializing, configuring, and running RESTful
 webapps with FastAPI"""
 
-from typing import Dict, Literal, Optional, Sequence, Type, Union
+from typing import Dict, Literal, Optional, Sequence, Union
 
 import uvicorn
 from fastapi import FastAPI
@@ -37,6 +37,9 @@ class ApiConfigBase(BaseSettings):
     log_level: LogLevel = "info"
     auto_reload: bool = False
     workers: int = 1
+    api_root_path: str = "/"
+    openapi_url: str = "/openapi.json"
+    docs_url: str = "/docs"
 
     # Starlettes defaults will only be overwritten if a
     # non-None value is specified:
@@ -46,8 +49,12 @@ class ApiConfigBase(BaseSettings):
     cors_allowed_headers: Optional[Sequence[str]] = None
 
 
-def configure_app(app: FastAPI, config: Type[ApiConfigBase]):
+def configure_app(app: FastAPI, config: ApiConfigBase):
     """Configure a FastAPI app based on a config object."""
+
+    app.root_path = config.api_root_path
+    app.openapi_url = config.openapi_url
+    app.docs_url = config.docs_url
 
     # configure CORS:
     kwargs: Dict[str, Optional[Union[Sequence[str], bool]]] = {}
@@ -63,7 +70,7 @@ def configure_app(app: FastAPI, config: Type[ApiConfigBase]):
     app.add_middleware(CORSMiddleware, **kwargs)
 
 
-def run_server(app: Union[str, FastAPI], config: Type[ApiConfigBase]):
+def run_server(app: Union[str, FastAPI], config: ApiConfigBase):
     """Starts backend server.
 
     Args:
