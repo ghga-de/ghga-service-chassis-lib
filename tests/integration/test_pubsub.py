@@ -31,7 +31,7 @@ from ghga_service_chassis_lib.pubsub_testing import RabbitMqContainer
 def test_pub_sub():
     """Test basic publish subscribe senario"""
 
-    timestamp = str(datetime.now().timestamp())
+    timestamp = str(datetime.utcnow().timestamp())
     topic_name = "test_pub_sub"
     test_message = {"timestamp": timestamp}
 

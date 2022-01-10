@@ -17,6 +17,7 @@
 
 import json
 import logging
+from copy import deepcopy
 from datetime import datetime
 from typing import Callable, Optional, Tuple
 
@@ -50,7 +51,7 @@ def validate_message(
     except jsonschema.exceptions.ValidationError as exc:
         logging.error(
             "%s: Message payload does not comform to JSON schema.",
-            datetime.now().isoformat(timespec="milliseconds"),
+            datetime.utcnow().isoformat(),
         )
         logging.exception(exc)
         if raise_on_exception:
@@ -85,7 +86,7 @@ def callback_factory(
 
         logging.info(
             " [x] %s: Message received",
-            datetime.now().isoformat(timespec="milliseconds"),
+            datetime.utcnow().isoformat(),
         )
 
         message = json.loads(body)
@@ -216,7 +217,7 @@ class AmqpTopic:
 
         logging.info(
             ' [*] %s: Waiting for messages in topic "%s".',
-            datetime.now().isoformat(timespec="milliseconds"),
+            datetime.utcnow().isoformat(),
             self.topic_name,
         )
 
@@ -230,12 +231,16 @@ class AmqpTopic:
                 The message payload to be send via the topic.
         """
 
+        # add timestamp to message:
+        message_stamped = deepcopy(message)
+        message_stamped["timestamp"] = datetime.utcnow().isoformat()
+
         # validate message:
         if self.json_schema:
-            validate_message(message, self.json_schema, raise_on_exception=True)
+            validate_message(message_stamped, self.json_schema, raise_on_exception=True)
 
         # convert message dict to json:
-        message_json = json.dumps(message)
+        message_json = json.dumps(message_stamped)
 
         # open a connection, create a channel, and declare an exchange:
         connection, channel = self._create_channel_and_exchange()
@@ -249,6 +254,6 @@ class AmqpTopic:
         )
         logging.info(
             " [x] %s: Sent message.",
-            datetime.now().isoformat(timespec="milliseconds"),
+            datetime.utcnow().isoformat(),
         )
         connection.close()

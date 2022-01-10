@@ -26,8 +26,8 @@ from .dao import Database
 
 async def add_some_todos(config: Config = CONFIG):
     """Add some todo items."""
-    tomorrow = datetime.now() + timedelta(1)
-    yesterday = datetime.now() - timedelta(1)
+    tomorrow = datetime.utcnow() + timedelta(1)
+    yesterday = datetime.utcnow() - timedelta(1)
 
     some_todos = [
         models.ToDoItem(
@@ -50,7 +50,7 @@ async def add_some_todos(config: Config = CONFIG):
 
 async def print_all_todos(config: Config = CONFIG):
     """Print all todo items and highlight items that are overdue"""
-    now = datetime.now()
+    now = datetime.utcnow()
 
     typer.echo("My ToDo list:")
 

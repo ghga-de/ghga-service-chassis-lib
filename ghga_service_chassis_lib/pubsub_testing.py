@@ -137,8 +137,8 @@ class RabbitMqContainer(DockerContainer):
         super().start()
 
         # wait until RabbitMQ is ready:
-        timeout_deadline = datetime.now() + timedelta(seconds=self.startup_timeout)
-        while datetime.now() < timeout_deadline:
+        timeout_deadline = datetime.utcnow() + timedelta(seconds=self.startup_timeout)
+        while datetime.utcnow() < timeout_deadline:
             sleep(self._READINESS_RETRY_DELAY)
             if self.readiness_probe():
                 return self
