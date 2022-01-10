@@ -20,63 +20,54 @@ You may also adapt the RabbitMQ host by defining the
 `RABBITMQ_TEST_HOST` environment variable.
 """
 
-import multiprocessing
-from datetime import datetime
-from time import sleep
+from copy import deepcopy
 
-from ghga_service_chassis_lib.pubsub import AmqpTopic, PubSubConfigBase
-from ghga_service_chassis_lib.pubsub_testing import RabbitMqContainer
+from ghga_service_chassis_lib.pubsub import AmqpTopic
+from ghga_service_chassis_lib.utils import exec_with_timeout
+
+from .fixtures.pubsub import amqp_fixture  # noqa: F401
+from .fixtures.pubsub import EXAMPLE_MESSAGE, EXAMPLE_MESSAGE_SCHEMA, EXAMPLE_TOPIC_NAME
 
 
-def test_pub_sub():
-    """Test basic publish subscribe senario"""
+def test_publishing(amqp_fixture):  # noqa: F811
+    """Test basic publish senario"""
+    downstream_subscriber = amqp_fixture.get_test_subscriber(
+        topic_name=EXAMPLE_TOPIC_NAME,
+        message_schema=EXAMPLE_MESSAGE_SCHEMA,
+    )
 
-    timestamp = str(datetime.utcnow().timestamp())
-    topic_name = "test_pub_sub"
-    test_message = {"timestamp": timestamp}
+    topic = AmqpTopic(config=amqp_fixture.config, topic_name=EXAMPLE_TOPIC_NAME)
+    topic.publish(EXAMPLE_MESSAGE)
 
-    with RabbitMqContainer() as rabbitmq:
-        connection_params = rabbitmq.get_connection_params()
+    downstream_subscriber.subscribe(expected_message=EXAMPLE_MESSAGE, timeout_after=2)
 
-        # publish the message:
-        def publish(topic_name: str, test_message: dict):
-            """function that runs as background process"""
-            # sleep shortly to make sure that the subscriber starts first:
-            sleep(0.2)
 
-            # create a topic object:
-            topic = AmqpTopic(
-                config=PubSubConfigBase(
-                    rabbitmq_host=connection_params.host,
-                    rabbitmq_port=connection_params.port,
-                    service_name="test_publisher",
-                ),
-                topic_name=topic_name,
-                json_schema=None,
-            )
+def test_subscribing(amqp_fixture):  # noqa: F811
+    """Test basic subscribe senario"""
+    upstream_publisher = amqp_fixture.get_test_publisher(
+        topic_name=EXAMPLE_TOPIC_NAME,
+        message_schema=EXAMPLE_MESSAGE_SCHEMA,
+    )
 
-            # send a test message:
-            topic.publish(test_message)
+    upstream_publisher.publish(EXAMPLE_MESSAGE)
 
-        process = multiprocessing.Process(
-            target=publish,
-            kwargs={"topic_name": topic_name, "test_message": test_message},
-        )
-        process.start()
+    def process_message(message: dict):
+        """Process the incomming message."""
 
-        # receive the message:
-        topic2 = AmqpTopic(
-            config=PubSubConfigBase(
-                rabbitmq_host=connection_params.host,
-                rabbitmq_port=connection_params.port,
-                service_name="test_subscriber",
-            ),
-            topic_name=topic_name,
-            json_schema=None,
-        )
+        message_stripped = deepcopy(message)
+        del message_stripped["timestamp"]
+        assert (
+            message_stripped == EXAMPLE_MESSAGE
+        ), "The content of the received message did not match the expectations."
 
-        def process_message(message_received: dict):
-            """proccess the message"""
-            assert message_received == test_message
-
-        topic2.subscribe(exec_on_message=process_message, run_forever=False)
+    topic = AmqpTopic(
+        config=amqp_fixture.config,
+        topic_name=EXAMPLE_TOPIC_NAME,
+        json_schema=EXAMPLE_MESSAGE_SCHEMA,
+    )
+    exec_with_timeout(
+        func=lambda: topic.subscribe(
+            exec_on_message=process_message, run_forever=False
+        ),
+        timeout_after=2,
+    )

@@ -249,9 +249,11 @@ class TestSubscriber(TestPubSubClient):
             """Process the incoming message and update the `update_with_message``
             with the message content"""
             if expected_message is not None:
+                message_stripped = copy.deepcopy(message)
+                del message_stripped["timestamp"]
                 assert (  # nosec
-                    message == expected_message
-                ), "The content of the received message didn't match the expectation."
+                    message_stripped == expected_message
+                ), "The content of the received message did not match the expectations."
 
             update_with_message.update(message)
 

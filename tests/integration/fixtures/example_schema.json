@@ -6,6 +6,11 @@
     "greet": {
       "description": "Greet the world.",
       "type": "string"
+    },
+    "timestamp": {
+      "description": "Time when message was published.",
+      "format": "date-time",
+      "type": "string"
     }
   },
   "required": [
