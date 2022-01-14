@@ -18,7 +18,7 @@
 import json
 import logging
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Optional, Tuple
 
 import jsonschema
@@ -51,7 +51,7 @@ def validate_message(
     except jsonschema.exceptions.ValidationError as exc:
         logging.error(
             "%s: Message payload does not comform to JSON schema.",
-            datetime.utcnow().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
         )
         logging.exception(exc)
         if raise_on_exception:
@@ -86,7 +86,7 @@ def callback_factory(
 
         logging.info(
             " [x] %s: Message received",
-            datetime.utcnow().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
         )
 
         message = json.loads(body)
@@ -217,7 +217,7 @@ class AmqpTopic:
 
         logging.info(
             ' [*] %s: Waiting for messages in topic "%s".',
-            datetime.utcnow().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
             self.topic_name,
         )
 
@@ -233,7 +233,7 @@ class AmqpTopic:
 
         # add timestamp to message:
         message_stamped = deepcopy(message)
-        message_stamped["timestamp"] = datetime.utcnow().isoformat()
+        message_stamped["timestamp"] = datetime.now(timezone.utc).isoformat()
 
         # validate message:
         if self.json_schema:
@@ -254,6 +254,6 @@ class AmqpTopic:
         )
         logging.info(
             " [x] %s: Sent message.",
-            datetime.utcnow().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
         )
         connection.close()

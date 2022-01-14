@@ -15,7 +15,7 @@
 
 """This module contains the main business logic of the application."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import typer
 
@@ -26,8 +26,8 @@ from .dao import Database
 
 async def add_some_todos(config: Config = CONFIG):
     """Add some todo items."""
-    tomorrow = datetime.utcnow() + timedelta(1)
-    yesterday = datetime.utcnow() - timedelta(1)
+    tomorrow = datetime.now(timezone.utc) + timedelta(1)
+    yesterday = datetime.now(timezone.utc) - timedelta(1)
 
     some_todos = [
         models.ToDoItem(
@@ -50,7 +50,7 @@ async def add_some_todos(config: Config = CONFIG):
 
 async def print_all_todos(config: Config = CONFIG):
     """Print all todo items and highlight items that are overdue"""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     typer.echo("My ToDo list:")
 

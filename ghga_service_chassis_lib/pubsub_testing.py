@@ -25,7 +25,7 @@ from the `pubsub` module.
 
 import copy
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from time import sleep
 from typing import Generator, Optional
@@ -137,8 +137,10 @@ class RabbitMqContainer(DockerContainer):
         super().start()
 
         # wait until RabbitMQ is ready:
-        timeout_deadline = datetime.utcnow() + timedelta(seconds=self.startup_timeout)
-        while datetime.utcnow() < timeout_deadline:
+        timeout_deadline = datetime.now(timezone.utc) + timedelta(
+            seconds=self.startup_timeout
+        )
+        while datetime.now(timezone.utc) < timeout_deadline:
             sleep(self._READINESS_RETRY_DELAY)
             if self.readiness_probe():
                 return self
