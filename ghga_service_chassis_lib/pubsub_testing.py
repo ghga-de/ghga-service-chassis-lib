@@ -1,4 +1,4 @@
-# Copyright 2021 Universität Tübingen, DKFZ and EMBL
+# Copyright 2021 - 2022 Universität Tübingen, DKFZ and EMBL
 # for the German Human Genome-Phenome Archive (GHGA)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ from the `pubsub` module.
 
 import copy
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from time import sleep
 from typing import Generator, Optional
@@ -137,8 +137,10 @@ class RabbitMqContainer(DockerContainer):
         super().start()
 
         # wait until RabbitMQ is ready:
-        timeout_deadline = datetime.now() + timedelta(seconds=self.startup_timeout)
-        while datetime.now() < timeout_deadline:
+        timeout_deadline = datetime.now(timezone.utc) + timedelta(
+            seconds=self.startup_timeout
+        )
+        while datetime.now(timezone.utc) < timeout_deadline:
             sleep(self._READINESS_RETRY_DELAY)
             if self.readiness_probe():
                 return self
@@ -249,9 +251,11 @@ class TestSubscriber(TestPubSubClient):
             """Process the incoming message and update the `update_with_message``
             with the message content"""
             if expected_message is not None:
+                message_stripped = copy.deepcopy(message)
+                del message_stripped["timestamp"]
                 assert (  # nosec
-                    message == expected_message
-                ), "The content of the received message didn't match the expectation."
+                    message_stripped == expected_message
+                ), "The content of the received message did not match the expectations."
 
             update_with_message.update(message)
 
