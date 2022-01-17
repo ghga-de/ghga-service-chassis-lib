@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2021 Universität Tübingen, DKFZ and EMBL
+# Copyright 2021 - 2022 Universität Tübingen, DKFZ and EMBL
 # for the German Human Genome-Phenome Archive (GHGA)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ SETUP_CFG_PATH = REPO_ROOT_DIR / "setup.cfg"
 NAME_PREFIX = "name = "
 
 
-def run():
+def get_package_name() -> str:
     """Extracts the package name"""
 
     with open(SETUP_CFG_PATH, "r", encoding="utf8") as setup_cfg:
@@ -32,8 +32,14 @@ def run():
             line_stripped = line.strip()
             if line_stripped.startswith(NAME_PREFIX):
                 package_name = line_stripped[len(NAME_PREFIX) :]
-                print(package_name)
-                return
+                return package_name
+        raise RuntimeError("Could not find package name.")
+
+
+def run():
+    """Run this script."""
+    package_name = get_package_name()
+    print(package_name)
 
 
 if __name__ == "__main__":
