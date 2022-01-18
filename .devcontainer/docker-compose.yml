@@ -16,20 +16,28 @@ services:
     volumes:
       - ..:/workspace:cached
 
-    environment:
-      RABBITMQ_TEST_HOST: rabbitmq
-
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
 
     # Uncomment the next line to use a non-root user for all processes.
     user: vscode
 
-  rabbitmq:
-    image: rabbitmq:3-management
+
+  kafka:
+    image: confluentinc/cp-kafka
     ports:
-      - 5672:5672
-      - 15672:15672
+      - "9093:9093"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9093,BROKER://0.0.0.0:9092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://10.5.0.1:9092
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=BROKER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=BROKER
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+
 
   mongo_db:
     image: mongo:4.4.6

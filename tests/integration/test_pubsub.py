@@ -22,7 +22,7 @@ You may also adapt the RabbitMQ host by defining the
 
 from copy import deepcopy
 
-from ghga_service_chassis_lib.pubsub import AmqpTopic
+from ghga_service_chassis_lib.kafka import AmqpTopic
 from ghga_service_chassis_lib.utils import exec_with_timeout
 
 from .fixtures.pubsub import amqp_fixture  # noqa: F401

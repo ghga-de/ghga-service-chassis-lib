@@ -18,7 +18,7 @@
 import json
 from pathlib import Path
 
-from ghga_service_chassis_lib.pubsub import AmqpTopic, PubSubConfigBase
+from ghga_service_chassis_lib.kafka import AmqpTopic, PubSubConfigBase
 
 HERE = Path(__file__).parent.resolve()
 

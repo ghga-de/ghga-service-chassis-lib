@@ -15,7 +15,7 @@
 
 """
 This module contains utilities for testing code created with the functionality
-from the `pubsub` module.
+from the `kafka` module.
 """
 
 # Skip pylint as this code should be migrated to the testcontainers-python repo
@@ -36,7 +36,7 @@ from testcontainers.core.container import DockerContainer
 
 from ghga_service_chassis_lib.utils import exec_with_timeout
 
-from .pubsub import AmqpTopic, PubSubConfigBase
+from .kafka import AmqpTopic, PubSubConfigBase
 
 
 class ReadinessTimeoutError(TimeoutError):

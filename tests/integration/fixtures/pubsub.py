@@ -17,7 +17,7 @@
 
 import json
 
-from ghga_service_chassis_lib.pubsub_testing import amqp_fixture_factory
+from ghga_service_chassis_lib.kafka_testing import amqp_fixture_factory
 
 from .utils import BASE_DIR
 
