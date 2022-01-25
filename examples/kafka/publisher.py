@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This script publishes messages to an AMQP Topic"""
+"""This script publishes events to a Kafka topic"""
 
 # pylint: disable-all
 
@@ -29,7 +29,7 @@ TOPIC_NAME = "my_topic"
 SERVICE_NAME = "publisher"
 EVENT_TYPE = "counter"
 EVENT_KEY = "count"
-KAFKA_SERVER = "kafka:9093"
+KAFKA_SERVER = "kafka:9092"
 
 with open(HERE / "message_schema.json", "r") as schema_file:
     EVENT_SCHEMAS = {EVENT_TYPE: json.load(schema_file)}
