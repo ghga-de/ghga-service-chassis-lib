@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This script consumes events from a Kafka topic"""
+"""This script publishes events to a Kafka topic"""
 
 # pylint: disable-all
 
@@ -21,12 +21,12 @@
 import json
 from pathlib import Path
 
-from ghga_service_chassis_lib.kafka import EventConsumer, KafkaConfigBase
+from ghga_service_chassis_lib.akafka import EventProducer, KafkaConfigBase
 
 HERE = Path(__file__).parent.resolve()
 
 TOPIC_NAME = "my_topic"
-SERVICE_NAME = "consumer"
+SERVICE_NAME = "publisher"
 EVENT_TYPE = "counter"
 EVENT_KEY = "count"
 KAFKA_SERVER = "kafka:9092"
@@ -34,23 +34,23 @@ KAFKA_SERVER = "kafka:9092"
 with open(HERE / "message_schema.json", "r") as schema_file:
     EVENT_SCHEMAS = {EVENT_TYPE: json.load(schema_file)}
 
-EXEC_FUNCS = {EVENT_TYPE: print}
-
 CONFIG = KafkaConfigBase(
     service_name=SERVICE_NAME, client_suffix="1", kafka_servers=[KAFKA_SERVER]
 )
 
 
 def run():
-    """Runs subscribing process."""
+    """Runs publishing process."""
 
-    with EventConsumer(
-        config=CONFIG,
-        topic_names=[TOPIC_NAME],
-        event_schemas=EVENT_SCHEMAS,
-        exec_funcs=EXEC_FUNCS,
-    ) as consumer:
-        consumer.subscribe(run_forever=True)
+    with EventProducer(
+        config=CONFIG, topic_name=TOPIC_NAME, event_schemas=EVENT_SCHEMAS
+    ) as producer:
+        # publish 10 messages:
+        for count in range(0, 10):
+            event_payload = {"count": count}
+            producer.publish(
+                event_type=EVENT_TYPE, event_key=EVENT_KEY, event_payload=event_payload
+            )
 
 
 if __name__ == "__main__":

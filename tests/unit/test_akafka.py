@@ -14,14 +14,18 @@
 # limitations under the License.
 #
 
-"""Test the kafka module."""
+"""Test the `akafka` module."""
 
 from datetime import datetime
 
 import pytest
 from testcontainers.kafka import KafkaContainer
 
-from ghga_service_chassis_lib.kafka import EventConsumer, EventProducer, KafkaConfigBase
+from ghga_service_chassis_lib.akafka import (
+    EventConsumer,
+    EventProducer,
+    KafkaConfigBase,
+)
 from ghga_service_chassis_lib.utils import exec_with_timeout
 
 

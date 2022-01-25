@@ -23,7 +23,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from .utils import DaoGenericBase, OutOfContextError
+from .utils import DaoGenericBase
 
 
 class ObjectStorageDaoError(RuntimeError):

@@ -17,9 +17,8 @@
 
 import json
 import logging
-from cProfile import run
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
 
 import jsonschema
 from kafka import KafkaConsumer, KafkaProducer
@@ -31,7 +30,7 @@ from .utils import OutOfContextError
 class EventSchemaNotFoundError(RuntimeError):
     """Thrown when an event schema was not found."""
 
-    pass
+    pass  # pylint: disable=unnecessary-pass
 
 
 class EventSchemaValidationError(RuntimeError):

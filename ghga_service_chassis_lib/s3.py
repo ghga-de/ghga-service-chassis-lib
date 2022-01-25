@@ -37,11 +37,11 @@ from .object_storage_dao import (
     ObjectNotFoundError,
     ObjectStorageDao,
     ObjectStorageDaoError,
-    OutOfContextError,
     PresignedPostURL,
     validate_bucket_id,
     validate_object_id,
 )
+from .utils import OutOfContextError
 
 
 class S3ConfigBase(BaseSettings):
