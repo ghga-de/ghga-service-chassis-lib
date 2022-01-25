@@ -17,15 +17,30 @@
 
 import json
 import logging
-from copy import deepcopy
+from cProfile import run
 from datetime import datetime, timezone
-from typing import Callable, Optional, Tuple, List
+from typing import Callable, Dict, List, Optional, Tuple
 
 import jsonschema
-import pika
-from pydantic import BaseSettings, pydantic
 from kafka import KafkaConsumer, KafkaProducer
-from ghga_message_schemas import SCHEMAS
+from pydantic import BaseSettings
+
+from .utils import OutOfContextError
+
+
+class EventSchemaNotFoundError(RuntimeError):
+    """Thrown when an event schema was not found."""
+
+    pass
+
+
+class EventSchemaValidationError(RuntimeError):
+    """Thrown when event schema was not valid."""
+
+    def __init__(self, reason: str):
+        """Create error with corresponding message."""
+        message = f"Event failed schema validation: {reason}"
+        super().__init__(message)
 
 
 class KafkaConfigBase(BaseSettings):
@@ -40,12 +55,12 @@ class KafkaConfigBase(BaseSettings):
     kafka_servers: List[str]
 
 
-def validate_event_value(
-    value: dict, json_schema: dict, raise_on_exception: bool = False
+def validate_payload(
+    payload: dict, json_schema: dict, raise_on_exception: bool = False
 ) -> bool:
-    """Validate a value based on a json_schema."""
+    """Validate an event payload based on the specified json_schema."""
     try:
-        jsonschema.validate(instance=value, schema=json_schema)
+        jsonschema.validate(instance=payload, schema=json_schema)
         return True
     except jsonschema.exceptions.ValidationError as exc:
         logging.error(
@@ -58,78 +73,241 @@ def validate_event_value(
         return False
 
 
-class KafkaTopic:
+def process_func_factory(
+    exec_funcs: Dict[str, Callable[[dict], None]], event_schemas: Dict[str, dict]
+):
+    """
+    Returns a function for processing all events that are of interest.
+    It validates the payload and selects the correct function for processing out of
+    the exec_funcs dict.
+    """
+
+    def process_func_wrapper(event):
+        """Adds validation to exec_on_event function"""
+
+        if "type" not in event.value.keys() or "payload" not in event.value.keys():
+            raise EventSchemaValidationError(
+                reason='The event value must contain the fields "type" and "payload".'
+            )
+
+        event_type = event.value["type"]
+
+        if event_type in exec_funcs.keys():  # else ignore event
+            json_schema = event_schemas[event_type]
+            event_payload = event.value["payload"]
+            validate_payload(
+                event_payload, json_schema=json_schema, raise_on_exception=True
+            )
+
+            exec_func = exec_funcs[event_type]
+            exec_func(event_payload)
+
+    return process_func_wrapper
+
+
+class EventClient:
     """A base class to connect and iteract to/with a Kafka host."""
 
     def __init__(
         self,
         config: KafkaConfigBase,
-        topic_name: str,
-        json_schema: Optional[dict] = None,
+        event_schemas: Dict[str, dict],
     ):
-        """Initialize the AMQP topic.
+        """Initialize the Producer.
+
+        Args:
+            config [KafkaConfigBase]:
+                Config paramaters provided as KafkaConfigBase object.
+            event_schemas (Dict[str, dict]):
+                A dictionary where the keys are the event types (== event keys) and the
+                values are schemas for the event payload (== event value).
+        """
+        self.bootstrap_servers = config.kafka_servers
+        self.service_name = config.service_name
+        self.client_suffix = config.client_suffix
+        self.client_id = f"{self.service_name}.{self.client_suffix}"
+        self.event_schemas = event_schemas
+
+
+class EventConsumer(EventClient):
+    "A client to consume events from Apache Kafka."
+
+    def __init__(
+        self,
+        config: KafkaConfigBase,
+        topic_names: List[str],
+        exec_funcs: Dict[str, Callable[[dict], None]],
+        event_schemas: Dict[str, dict],
+    ):
+        """
+        Initialize the EventConsumer.
+
+        Args:
+            config [KafkaConfigBase]:
+                Config paramaters provided as KafkaConfigBase object.
+            topic_names (List[str]):
+                A list of topic name to subscribe to (only use letters, numbers, and "_").
+            exec_funcs (Dict[str, Callable[[dict], None]]):
+                A dictionary where the keys are the event types (== event keys) and the
+                values are the callables to process the corresponding events.
+                The only argument of the callables is the event value (a dict).
+            event_schemas (Dict[str, dict]):
+                A dictionary where the keys are the event types (== event keys) and the
+                values are schemas for the event payload (== event value).
+        """
+        super().__init__(config=config, event_schemas=event_schemas)
+        self.topic_names = topic_names
+        self.exec_funcs = exec_funcs
+
+        for event_type in exec_funcs.keys():
+            if event_type not in event_schemas.keys():
+                raise EventSchemaNotFoundError(
+                    "The event_schemas dictionary is missing the schema for the event"
+                    + f' type "{event_type}"'
+                )
+
+        self._consumer: Optional[KafkaConsumer] = None
+
+    def __enter__(self):
+        """Initialize the Kafka Producer"""
+
+        self._consumer = KafkaConsumer(
+            *self.topic_names,
+            client_id=self.client_id,
+            group_id=self.service_name,
+            bootstrap_servers=self.bootstrap_servers,
+            auto_offset_reset="earliest",
+            key_deserializer=lambda event_key: event_key.decode("ascii"),
+            value_deserializer=lambda event_value: json.loads(
+                event_value.decode("ascii")
+            ),
+        )
+
+        return self
+
+    def __exit__(self, err_type, err_value, err_traceback):
+        """
+        Autocommit the current offset.
+        """
+        if not isinstance(self._consumer, KafkaConsumer):
+            raise OutOfContextError()
+        self._consumer.close(autocommit=True)
+
+    def subscribe(self, run_forever: bool = True):
+        """Subscribe to a topic and execute the specified function whenever
+        a message is received.
+
+        Args:
+            run_forever (bool):
+                If `True`, the function will continue to consume event for ever.
+                If `False`, the function will wait for the first event, cosume it,
+                and exit. Defaults to `True`.
+        """
+
+        if not isinstance(self._consumer, KafkaConsumer):
+            raise OutOfContextError()
+
+        process_event = process_func_factory(
+            self.exec_funcs, event_schemas=self.event_schemas
+        )
+
+        if run_forever:
+            for event in self._consumer:
+                process_event(event)
+        else:
+            event = next(self._consumer)
+            process_event(event)
+
+
+class EventProducer(EventClient):
+    "A client to publish events to Apache Kafka."
+
+    def __init__(
+        self,
+        config: KafkaConfigBase,
+        topic_name: str,
+        event_schemas: Dict[str, dict],
+    ):
+        """Initialize the Producer.
 
         Args:
             config [KafkaConfigBase]:
                 Config paramaters provided as KafkaConfigBase object.
             topic_name (str):
                 The name of the topic (only use letters, numbers, and "_").
-            json_schema (Optional[dict]):
-                Optional. If provided, the message body will be validated against this
-                json schema.
+            event_schemas (Dict[str, dict]):
+                A dictionary where the keys are the event types (== event keys) and the
+                values are schemas for the event payload (== event value).
         """
+        super().__init__(config=config, event_schemas=event_schemas)
         self.bootstrap_servers = config.kafka_servers
         self.service_name = config.service_name
         self.client_suffix = config.client_suffix
         self.client_id = f"{self.service_name}.{self.client_suffix}"
         self.topic_name = topic_name
-        self.json_schema = json_schema
+        self.event_schemas = event_schemas
 
-        self.producer_ = KafkaProducer(
+        self._producer: Optional[KafkaProducer] = None
+
+    def __enter__(self):
+        """Initialize the Kafka Producer"""
+
+        self._producer = KafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
             client_id=self.client_id,
-            value_serializer=lambda m: json.dumps(m).encode("ascii"),
+            key_serializer=lambda event_key: event_key.encode("ascii"),
+            value_serializer=lambda event_value: json.dumps(event_value).encode(
+                "ascii"
+            ),
         )
 
-    def subscribe(
-        self, exec_on_event: Callable[[str, dict], None], run_forever: bool = True
-    ):
-        """Subscribe to a topic and execute the specified function whenever
-        a message is received.
+        return self
 
-        Args:
-            exec_on_message (Callable[[str, dict], None]):
-                A callable that is executed whenever an event is received.
-                The callable takes the event key (a string) as the first argument and
-                the event value (a dict) as the second argument.
-            run_forever (bool):
-                If `True`, the function will continue to consume event for ever.
-                If `False`, the function will wait for the first event, cosume it,
-                and exit. Defaults to `True`.
+    def __exit__(self, err_type, err_value, err_traceback):
         """
-        consumer = KafkaConsumer(
-            self.topic_name,
-            client_id=self.client_id,
-            group_id=self.service_name,
-            bootstrap_servers=self.bootstrap_servers,
-        )
+        Flush and close producer. Blocks until all published events are transmitted.
+        """
+        if not isinstance(self._producer, KafkaProducer):
+            raise OutOfContextError()
+        self._producer.flush()
+        self._producer.close()
 
-        if run_forever:
-            for event in consumer:
-                exec_on_event(event.key, event.value)
-        else:
-            event = next(consumer)
-
-    def publish(self, key: str, value: dict):
+    def publish(self, event_type: str, event_key: str, event_payload: dict):
         """Publish a message to the topic
 
         Args:
-            key (str):
-                The event key as str.
-            value (dict):
-                The event value as dict.
+            event_type (str):
+                The type of event. A keyword string that describes the action. Event
+                types that reflect the lifetime of a user account could be:
+                "user_registered", "user_activated", "user_inactived", "user_deleted",
+                etc.
+            event_key (str):
+                The event key as str. Usually the identified of the resource that this
+                event is related to. E.g. in a "user_registered" event, the key could be
+                the ID of the user (e.g. "user-012323456").
+            event_payload (dict):
+                The event/message payload as a dict. I.e. the information that should be
+                transmitted with this event.
         """
 
-        validate_event_value(value, json_schema=SCHEMAS[key], raise_on_exception=True)
+        if not isinstance(self._producer, KafkaProducer):
+            raise OutOfContextError()
 
-        self.producer_.send(self.topic_name, {key: value})
+        # validate payload against schema:
+        if event_type not in self.event_schemas.keys():
+            raise EventSchemaNotFoundError(
+                f'Schema for event of type "{event_type}"'
+                + " was not found in the specified event_schemas dict."
+            )
+        event_schema = self.event_schemas[event_type]
+        validate_payload(
+            event_payload, json_schema=event_schema, raise_on_exception=True
+        )
+
+        # construct the event value:
+        event_value = {
+            "type": event_type,
+            "payload": event_payload,
+        }
+
+        self._producer.send(self.topic_name, key=event_key, value=event_value)

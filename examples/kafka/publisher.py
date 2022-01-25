@@ -21,30 +21,36 @@
 import json
 from pathlib import Path
 
-from ghga_service_chassis_lib.kafka import AmqpTopic, PubSubConfigBase
+from ghga_service_chassis_lib.kafka import EventProducer, KafkaConfigBase
 
 HERE = Path(__file__).parent.resolve()
+
+TOPIC_NAME = "my_topic"
+SERVICE_NAME = "publisher"
+EVENT_TYPE = "counter"
+EVENT_KEY = "count"
+KAFKA_SERVER = "kafka:9093"
+
+with open(HERE / "message_schema.json", "r") as schema_file:
+    EVENT_SCHEMAS = {EVENT_TYPE: json.load(schema_file)}
+
+CONFIG = KafkaConfigBase(
+    service_name=SERVICE_NAME, client_suffix="1", kafka_servers=[KAFKA_SERVER]
+)
 
 
 def run():
     """Runs publishing process."""
 
-    # read json schema:
-    with open(HERE / "message_schema.json", "r") as schema_file:
-        message_schema = json.load(schema_file)
-
-    # create a topic object:
-    config = PubSubConfigBase(service_name="publisher")
-    topic = AmqpTopic(
-        config=config,
-        topic_name="my_topic",
-        json_schema=message_schema,
-    )
-
-    # publish 10 messages:
-    for count in range(0, 10):
-        message = {"count": count}
-        topic.publish(message)
+    with EventProducer(
+        config=CONFIG, topic_name=TOPIC_NAME, event_schemas=EVENT_SCHEMAS
+    ) as producer:
+        # publish 10 messages:
+        for count in range(0, 10):
+            event_payload = {"count": count}
+            producer.publish(
+                event_type=EVENT_TYPE, event_key=EVENT_KEY, event_payload=event_payload
+            )
 
 
 if __name__ == "__main__":
