@@ -23,7 +23,7 @@ from typing import Callable, Optional, Tuple
 
 import jsonschema
 import pika
-from pydantic import BaseSettings
+from pydantic import BaseSettings, Field
 
 
 class PubSubConfigBase(BaseSettings):
@@ -32,9 +32,22 @@ class PubSubConfigBase(BaseSettings):
     Inherit your config class from this class if you need
     to run an async PubSub API."""
 
-    service_name: str
-    rabbitmq_host: str = "rabbitmq"
-    rabbitmq_port: int = 5672
+    service_name: str = Field(
+        ...,
+        example="my_cool_service",
+        description=(
+            "The name of this service."
+            + " This should be identical for all instances of this service."
+        ),
+    )
+    rabbitmq_host: str = Field(
+        ...,
+        example="rabbitmq",
+        description="Name or IP address of the host running the RabbitMQ broker.",
+    )
+    rabbitmq_port: int = Field(
+        5672, description="Port of the RabbitMQ broker running on the specified host."
+    )
 
 
 class MaxAttemptsReached(Exception):

@@ -20,7 +20,7 @@ This module contains functionalities that simplifies the connection to SQL datab
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 
-from pydantic import BaseSettings, validator
+from pydantic import BaseSettings, Field, validator
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -32,8 +32,15 @@ class PostgresqlConfigBase(BaseSettings):
     Inherit your config class from this class if you need
     PostgreSQL in the backend."""
 
-    db_url: str
-    db_print_logs: bool = False
+    db_url: str = Field(
+        ...,
+        example="postgresql://user:password@mydbserver/dbname",
+        description="A URL to a PostgreSQL database.",
+    )
+    db_print_logs: bool = Field(
+        False,
+        description="Print DB/ORM logs.",
+    )
 
     # pylint: disable=no-self-argument,no-self-use
     @validator("db_url")

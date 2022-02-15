@@ -26,7 +26,7 @@ import botocore.client
 import botocore.config
 import botocore.configloader
 import botocore.exceptions
-from pydantic import BaseSettings
+from pydantic import BaseSettings, Field
 
 from .object_storage_dao import (
     BucketAlreadyExists,
@@ -67,11 +67,43 @@ class S3ConfigBase(BaseSettings):
             Defaults to None.
     """
 
-    s3_endpoint_url: str
-    s3_access_key_id: str
-    s3_secret_access_key: str
-    s3_session_token: Optional[str] = None
-    aws_config_ini: Optional[Path] = None
+    s3_endpoint_url: str = Field(
+        ..., example="http://localhost:4566", description="URL to the S3 API."
+    )
+    s3_access_key_id: str = Field(
+        ...,
+        example="my-access-key-id",
+        description=(
+            "Part of credentials for login into the S3 service. See:"
+            + " https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html"
+        ),
+    )
+    s3_secret_access_key: str = Field(
+        ...,
+        example="my-secret-access-key",
+        description=(
+            "Part of credentials for login into the S3 service. See:"
+            + " https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html"
+        ),
+    )
+    s3_session_token: Optional[str] = Field(
+        None,
+        example="my-session-token",
+        description=(
+            "Part of credentials for login into the S3 service. See:"
+            + " https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html"
+        ),
+    )
+    aws_config_ini: Optional[Path] = Field(
+        None,
+        example="~/.aws/config",
+        description=(
+            "Path to a config file for specifying more advanced S3 parameters."
+            + " This should follow the format described here:"
+            # pylint: disable=line-too-long
+            + " https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-a-configuration-file"
+        ),
+    )
 
 
 @lru_cache
