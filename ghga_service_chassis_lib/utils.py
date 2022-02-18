@@ -31,6 +31,14 @@ TEST_FILE_PATHS = [
 ]
 
 
+class OutOfContextError(RuntimeError):
+    """Thrown when a context manager is used out of context."""
+
+    def __init__(self):
+        message = "Used context manager outside of a with block."
+        super().__init__(message)
+
+
 class DaoGenericBase:
     """A generic base for implementing DAO interfaces."""
 

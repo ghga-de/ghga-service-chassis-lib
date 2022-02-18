@@ -10,13 +10,13 @@ at host "rabbitmq" and port "5672" (as configured in the devcontainer).
 
 First start the subscribing service:
 ```bash
-python3 ./subscriber.py
+python3 ./amqp_subscriber.py
 ```
 
 Thereafter, in another terminal, execute the publishing
 service:
 ```bash
-python3 ./publisher.py
+python3 ./amqp_publisher.py
 ```
 
 You should now see the following in the stdout of the subscribing
