@@ -30,14 +30,6 @@ class ObjectStorageDaoError(RuntimeError):
     """Generic base exceptions for all error related to the DAO base class."""
 
 
-class OutOfContextError(ObjectStorageDaoError):
-    """Thrown when the context manager is used out of context."""
-
-    def __init__(self, context_manager_name: str):
-        message = f"{context_manager_name} is used outside of a with block."
-        super().__init__(message)
-
-
 class BucketError(ObjectStorageDaoError):
     """Generic base exceptions for error that occur while handling buckets."""
 

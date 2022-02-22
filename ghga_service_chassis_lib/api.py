@@ -21,7 +21,7 @@ from typing import Dict, Literal, Optional, Sequence, Union
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseSettings
+from pydantic import BaseSettings, Field
 
 # type alias for log level parameter
 LogLevel = Literal["critical", "error", "warning", "info", "debug", "trace"]
@@ -32,21 +32,83 @@ class ApiConfigBase(BaseSettings):
     Inherit your config class from this class if you need
     to run an API backend."""
 
-    host: str = "127.0.0.1"
-    port: int = 8080
-    log_level: LogLevel = "info"
-    auto_reload: bool = False
-    workers: int = 1
-    api_root_path: str = "/"
-    openapi_url: str = "/openapi.json"
-    docs_url: str = "/docs"
+    host: str = Field("127.0.0.1", description="IP of the host.")
+    port: int = Field(
+        8080, description="Port to expose the server on the specified host"
+    )
+    log_level: LogLevel = Field(
+        "info", description="Controls the verbosity of the log."
+    )
+    auto_reload: bool = Field(
+        False,
+        description=(
+            "A development feature."
+            + " Set to `True` to automatically reload the server upon code changes"
+        ),
+    )
+    workers: int = Field(1, description="Number of workers processes to run.")
+    api_root_path: str = Field(
+        "/",
+        description=(
+            "Root path at which the API is reachable."
+            + " This is relative to the specified host and port."
+        ),
+    )
+    openapi_url: str = Field(
+        "/openapi.json",
+        description=(
+            "Path to get the openapi specification in JSON format."
+            + " This is relative to the specified host and port."
+        ),
+    )
+    docs_url: str = Field(
+        "/docs",
+        description=(
+            "Path to host the swagger documentation."
+            + " This is relative to the specified host and port."
+        ),
+    )
 
     # Starlettes defaults will only be overwritten if a
     # non-None value is specified:
-    cors_allowed_origins: Optional[Sequence[str]] = None
-    cors_allow_credentials: Optional[bool] = None
-    cors_allowed_methods: Optional[Sequence[str]] = None
-    cors_allowed_headers: Optional[Sequence[str]] = None
+    cors_allowed_origins: Optional[Sequence[str]] = Field(
+        None,
+        example=["https://example.org", "https://www.example.org"],
+        description=(
+            "A list of origins that should be permitted to make cross-origin requests."
+            + " By default, cross-origin requests are not allowed."
+            + " You can use ['*'] to allow any origin."
+        ),
+    )
+    cors_allow_credentials: Optional[bool] = Field(
+        None,
+        example=["https://example.org", "https://www.example.org"],
+        description=(
+            "Indicate that cookies should be supported for cross-origin requests."
+            + " Defaults to False."
+            + " Also, cors_allowed_origins cannot be set to ['*'] for credentials to be"
+            + " allowed. The origins must be explicitly specified."
+        ),
+    )
+    cors_allowed_methods: Optional[Sequence[str]] = Field(
+        None,
+        example=["*"],
+        description=(
+            "A list of HTTP methods that should be allowed for cross-origin requests."
+            + " Defaults to ['GET']. You can use ['*'] to allow all standard methods."
+        ),
+    )
+    cors_allowed_headers: Optional[Sequence[str]] = Field(
+        None,
+        example=[],
+        description=(
+            "A list of HTTP request headers that should be supported for cross-origin"
+            + " requests. Defaults to []."
+            + " You can use ['*'] to allow all headers."
+            + " The Accept, Accept-Language, Content-Language and Content-Type headers"
+            + " are always allowed for CORS requests."
+        ),
+    )
 
 
 def configure_app(app: FastAPI, config: ApiConfigBase):
