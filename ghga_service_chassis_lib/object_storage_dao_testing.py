@@ -95,7 +95,7 @@ def multipart_upload_file(
     part_size = calc_part_size(file_path=file_path, n_parts=n_parts)
     parts_tag_mapping: dict[int, str] = {}
     with open(file_path, "rb") as test_file:
-        for part_number in range(0, n_parts):
+        for part_number in range(1, n_parts + 1):
             print(f" - get upload url for part number: {part_number}")
             upload_url = storage_dao.get_part_upload_url(
                 upload_id=upload_id,

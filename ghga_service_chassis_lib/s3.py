@@ -416,11 +416,16 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
     ) -> str:
         """Given a id of an instatiated mulitpart upload along with the corresponding
         bucket and object ID, it returns a presign URL for uploading a file part with the
-        specified number
-        Please note: parts should be uploaded in sequence.
+        specified number.
+        Please note: the part number must be a non-zero, positive integer and parts
+        should be uploaded in sequence.
         """
         if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError()
+
+        if part_number < 1:
+            raise ValueError("The part number must be a non-zero positive integer.")
+
         return self._client.generate_presigned_url(
             ClientMethod="upload_part",
             Params={
