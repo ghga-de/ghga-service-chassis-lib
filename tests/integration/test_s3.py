@@ -31,6 +31,7 @@ from ghga_service_chassis_lib.object_storage_dao import (
 from ghga_service_chassis_lib.object_storage_dao_testing import (
     DEFAULT_NON_EXISTING_OBJECTS,
     download_and_check_test_file,
+    multipart_upload_file,
     upload_file,
 )
 
@@ -46,6 +47,8 @@ def typical_workflow(
     object_id: str = DEFAULT_NON_EXISTING_OBJECTS[0].object_id,
     test_file_path: Path = DEFAULT_NON_EXISTING_OBJECTS[0].file_path,
     test_file_md5: str = DEFAULT_NON_EXISTING_OBJECTS[0].md5,
+    use_multipart_upload: bool = True,
+    n_parts: int = 10,
 ):
     """
     Run a typical workflow of basic object operations using a S3 service.
@@ -58,13 +61,22 @@ def typical_workflow(
     print(" - confirm bucket creation")
     assert storage_client.does_bucket_exist(bucket1_id)
 
-    print(f" - upload test object {object_id} to bucket")
-    upload_url = storage_client.get_object_upload_url(
-        bucket_id=bucket1_id, object_id=object_id
-    )
-    upload_file(
-        presigned_url=upload_url, file_path=test_file_path, file_md5=test_file_md5
-    )
+    if use_multipart_upload:
+        multipart_upload_file(
+            storage_dao=storage_client,
+            bucket_id=bucket1_id,
+            object_id=object_id,
+            file_path=test_file_path,
+            n_parts=n_parts,
+        )
+    else:
+        print(f" - upload test object {object_id} to bucket")
+        upload_url = storage_client.get_object_upload_url(
+            bucket_id=bucket1_id, object_id=object_id
+        )
+        upload_file(
+            presigned_url=upload_url, file_path=test_file_path, file_md5=test_file_md5
+        )
 
     print(" - confirm object upload")
     assert storage_client.does_object_exist(bucket_id=bucket1_id, object_id=object_id)

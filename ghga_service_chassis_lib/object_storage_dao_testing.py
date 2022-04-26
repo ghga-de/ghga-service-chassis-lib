@@ -19,6 +19,8 @@ from the `object_storage_dao` module.
 """
 
 import hashlib
+import math
+import os
 from pathlib import Path
 from typing import List
 
@@ -68,6 +70,53 @@ def upload_file(presigned_url: PresignedPostURL, file_path: Path, file_md5: str)
             presigned_url.url, data=presigned_url.fields, files=files, headers=headers
         )
         response.raise_for_status()
+
+
+def calc_part_size(file_path: Path, n_parts: int) -> int:
+    """Calculate the part size in bytes for the given file when desiring the specified number of
+    parts."""
+    file_size = os.path.getsize(file_path)
+    return math.ceil(file_size / n_parts)
+
+
+def multipart_upload_file(
+    storage_dao: ObjectStorageDao,
+    bucket_id: str,
+    object_id: str,
+    file_path: Path,
+    n_parts: int,
+) -> None:
+    """Uploads the test file to the specified URL"""
+    print(f" - initiate multipart upload for test object {object_id}")
+    upload_id = storage_dao.init_mulitpart_upload(
+        bucket_id=bucket_id, object_id=object_id
+    )
+
+    part_size = calc_part_size(file_path=file_path, n_parts=n_parts)
+    parts_tag_mapping: dict[int, str] = {}
+    with open(file_path, "rb") as test_file:
+        for part_number in range(0, n_parts):
+            print(f" - get upload url for part number: {part_number}")
+            upload_url = storage_dao.get_part_upload_url(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                part_number=part_number,
+            )
+            print(f" - read {part_size} from file: {str(file_path)}")
+            file_part = test_file.read(part_size)
+            print(f" - upload part number {part_number} using upload url")
+            response = requests.put(upload_url, data=file_part)
+            response.raise_for_status()
+            parts_tag_mapping[part_number] = response.headers["ETag"]
+
+    print(" - complete mulitpart upload")
+    storage_dao.complete_mulitpart_upload(
+        upload_id=upload_id,
+        bucket_id=bucket_id,
+        object_id=object_id,
+        part_tag_mapping=parts_tag_mapping,
+    )
 
 
 def download_and_check_test_file(presigned_url: str, expected_md5: str):
