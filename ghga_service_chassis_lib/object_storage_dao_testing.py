@@ -74,9 +74,10 @@ def upload_file(presigned_url: PresignedPostURL, file_path: Path, file_md5: str)
 
 def calc_part_size(file_path: Path, n_parts: int) -> int:
     """Calculate the part size in bytes for the given file when desiring the specified number of
-    parts."""
+    parts.
+    Please note, the part size must be at least 25 min"""
     file_size = os.path.getsize(file_path)
-    return math.ceil(file_size / n_parts)
+    return max(math.ceil(file_size / n_parts), 5000)
 
 
 def multipart_upload_file(
