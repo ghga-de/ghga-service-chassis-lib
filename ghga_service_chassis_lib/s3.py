@@ -408,7 +408,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError()
 
-        response = self._client.create_mulitpart_upload(Bucket=bucket_id, Key=object_id)
+        response = self._client.create_multipart_upload(Bucket=bucket_id, Key=object_id)
         return response["UploadId"]
 
     def get_part_upload_url(
