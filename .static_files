@@ -24,6 +24,7 @@ scripts/README.md
 .gitignore
 .pre-commit-config.yaml
 .pylintrc
+.mypy.ini
 codecov.yml
 
 LICENSE
