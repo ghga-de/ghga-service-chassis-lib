@@ -20,6 +20,7 @@
 
 import json
 from pathlib import Path
+from typing import Any, Callable
 
 from ghga_service_chassis_lib.akafka import EventConsumer, KafkaConfigBase
 
@@ -34,7 +35,8 @@ KAFKA_SERVER = "kafka:9092"
 with open(HERE / "message_schema.json", "r") as schema_file:
     EVENT_SCHEMAS = {EVENT_TYPE: json.load(schema_file)}
 
-EXEC_FUNCS = {EVENT_TYPE: print}
+print_: Callable[[Any], None] = print
+EXEC_FUNCS = {EVENT_TYPE: print_}
 
 CONFIG = KafkaConfigBase(
     service_name=SERVICE_NAME, client_suffix="1", kafka_servers=[KAFKA_SERVER]
