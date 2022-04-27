@@ -77,7 +77,7 @@ def calc_part_size(file_path: Path, n_parts: int) -> int:
     parts.
     Please note, the part size must be at least 25 min"""
     file_size = os.path.getsize(file_path)
-    return max(math.ceil(file_size / n_parts), 5000)
+    return max(math.ceil(file_size / n_parts), 50 * pow(10, 6))
 
 
 def multipart_upload_file(
@@ -106,10 +106,14 @@ def multipart_upload_file(
             )
             print(f" - read {part_size} from file: {str(file_path)}")
             file_part = test_file.read(part_size)
-            print(f" - upload part number {part_number} using upload url")
-            response = requests.put(upload_url, data=file_part)
-            response.raise_for_status()
-            parts_tag_mapping[part_number] = response.headers["ETag"]
+            if file_part:
+                print(f" - upload part number {part_number} using upload url")
+                response = requests.put(upload_url, data=file_part)
+                response.raise_for_status()
+                parts_tag_mapping[part_number] = response.headers["ETag"]
+            else:
+                print(f" - everything uploaded with {part_number} parts")
+                break
 
     print(" - complete mulitpart upload")
     storage_dao.complete_mulitpart_upload(
