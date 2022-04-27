@@ -25,7 +25,6 @@ scripts/README.md
 .pre-commit-config.yaml
 .pylintrc
 .mypy.ini
-codecov.yml
 
 LICENSE
 requirements.txt
