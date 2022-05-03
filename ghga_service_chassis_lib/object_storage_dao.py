@@ -25,6 +25,10 @@ from typing import Optional
 
 from .utils import DaoGenericBase
 
+# constants for multipart upload
+DEFAULT_PART_SIZE = 16 * 1024 * 1024
+MAX_FILE_PART_NUMBER = 10000
+
 
 class ObjectStorageDaoError(RuntimeError):
     """Generic base exceptions for all error related to the DAO base class."""

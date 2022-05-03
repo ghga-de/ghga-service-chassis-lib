@@ -23,6 +23,7 @@ import pytest
 from black import nullcontext
 
 from ghga_service_chassis_lib.object_storage_dao import (
+    DEFAULT_PART_SIZE,
     BucketAlreadyExists,
     BucketNotFoundError,
     ObjectAlreadyExistsError,
@@ -51,7 +52,7 @@ def typical_workflow(
     test_file_path: Path = DEFAULT_NON_EXISTING_OBJECTS[0].file_path,
     test_file_md5: str = DEFAULT_NON_EXISTING_OBJECTS[0].md5,
     use_multipart_upload: bool = True,
-    n_parts: int = 10,
+    part_size: int = DEFAULT_PART_SIZE,
 ):
     """
     Run a typical workflow of basic object operations using a S3 service.
@@ -70,7 +71,7 @@ def typical_workflow(
             bucket_id=bucket1_id,
             object_id=object_id,
             file_path=test_file_path,
-            n_parts=n_parts,
+            part_size=part_size,
         )
     else:
         print(f" - upload test object {object_id} to bucket")
@@ -131,7 +132,7 @@ def test_typical_workflow(use_multipart_upload: bool, s3_fixture):  # noqa: F811
     Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
     """
     with (
-        big_temp_file(size=20 * pow(10, 6)) if use_multipart_upload else nullcontext()
+        big_temp_file(size=20 * 1024 * 1024) if use_multipart_upload else nullcontext()
     ) as temp_file:
         object_fixture = (
             ObjectFixture(
