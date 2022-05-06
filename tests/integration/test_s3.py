@@ -25,23 +25,22 @@ from black import nullcontext
 from ghga_service_chassis_lib.object_storage_dao import (
     BucketAlreadyExists,
     BucketNotFoundError,
+    MultiPartUploadConfirmError,
+    MultiPartUploadNotFoundError,
     ObjectAlreadyExistsError,
     ObjectNotFoundError,
-    MultiPartUploadNotFoundError,
-    MultiPartUploadConfirmError,
 )
 from ghga_service_chassis_lib.object_storage_dao_testing import (
+    MEBIBYTE,
     ObjectFixture,
     upload_part_of_size,
-    MiB,
 )
 from ghga_service_chassis_lib.s3_testing import (
     S3Fixture,
-    typical_workflow,
     get_initialized_upload,
     prepare_non_completed_upload,
+    typical_workflow,
 )
-
 from ghga_service_chassis_lib.utils import big_temp_file
 
 from .fixtures.s3 import s3_fixture  # noqa: F401
@@ -49,13 +48,13 @@ from .fixtures.s3 import s3_fixture  # noqa: F401
 
 @pytest.mark.parametrize("use_multipart_upload", [True, False])
 def test_typical_workflow(
-    use_multipart_upload: bool, s3_fixture: S3Fixture
-):  # noqa: F811
+    use_multipart_upload: bool, s3_fixture: S3Fixture  # noqa: F811
+):
     """
     Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
     """
     with (
-        big_temp_file(size=20 * MiB) if use_multipart_upload else nullcontext()
+        big_temp_file(size=20 * MEBIBYTE) if use_multipart_upload else nullcontext()
     ) as temp_file:
         object_fixture = (
             ObjectFixture(
@@ -170,7 +169,7 @@ def test_using_non_existing_upload(
     bucket_id_correct: bool,
     object_id_correct: bool,
     exception,
-    s3_fixture,
+    s3_fixture,  # noqa: F811
 ):
     """
     Makes sure that using a non existing upload_id-bucket_id-object_id combination
@@ -208,7 +207,9 @@ def test_using_non_existing_upload(
     [(0, ValueError), (1, None), (10000, None), (10001, ValueError)],
 )
 def test_invalid_part_number(
-    part_number: int, exception: Optional[Exception], s3_fixture
+    part_number: int,
+    exception: Optional[Exception],
+    s3_fixture: S3Fixture,  # noqa: F811
 ):
     """Check that invalid part numbers are cached correcly."""
 
@@ -226,35 +227,47 @@ def test_invalid_part_number(
 @pytest.mark.parametrize(
     "part_sizes, anticipated_part_size, anticipated_part_quantity, exception",
     [
-        ([10 * MiB, 10 * MiB, 1 * MiB], None, None, None),
-        ([10 * MiB, 10 * MiB, 1 * MiB], 10 * MiB, 3, None),
+        ([10 * MEBIBYTE, 10 * MEBIBYTE, 1 * MEBIBYTE], None, None, None),
+        ([10 * MEBIBYTE, 10 * MEBIBYTE, 1 * MEBIBYTE], 10 * MEBIBYTE, 3, None),
         ([], None, None, MultiPartUploadConfirmError),  # zero parts uploaded
         (
-            [10 * MiB, 10 * MiB, 11 * MiB],
+            [10 * MEBIBYTE, 10 * MEBIBYTE, 11 * MEBIBYTE],
             None,
             2,
             MultiPartUploadConfirmError,
         ),  # Missmatch with anticipated parts
         (
-            [10 * MiB, 5 * MiB, 1 * MiB],
+            [10 * MEBIBYTE, 5 * MEBIBYTE, 1 * MEBIBYTE],
             None,
             None,
             MultiPartUploadConfirmError,
         ),  # heterogenous part sizes
         (
-            [10 * MiB, 10 * MiB, 11 * MiB],
-            10 * MiB,
+            [10 * MEBIBYTE, 10 * MEBIBYTE, 11 * MEBIBYTE],
+            None,
+            None,
+            MultiPartUploadConfirmError,
+        ),  # last part bigger than first part
+        (
+            [10 * MEBIBYTE, 5 * MEBIBYTE, 1 * MEBIBYTE],
+            10 * MEBIBYTE,
+            None,
+            MultiPartUploadConfirmError,
+        ),  # missmatch anticipated part size
+        (
+            [10 * MEBIBYTE, 10 * MEBIBYTE, 11 * MEBIBYTE],
+            10 * MEBIBYTE,
             None,
             MultiPartUploadConfirmError,
         ),  # Too large last part
     ],
 )
 def test_complete_multipart_upload(
-    part_sizes: list[str],
+    part_sizes: list[int],
     anticipated_part_size: Optional[int],
     anticipated_part_quantity: Optional[int],
     exception: Optional[Exception],
-    s3_fixture,
+    s3_fixture: S3Fixture,  # noqa: F811
 ):
     """
     Test the complete_multipart_upload method.

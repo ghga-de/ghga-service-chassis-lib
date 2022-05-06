@@ -34,8 +34,7 @@ from .object_storage_dao import (
 )
 from .utils import TEST_FILE_PATHS
 
-
-MiB = 1024 * 1024
+MEBIBYTE = 1024 * 1024
 
 
 def calc_md5(content: bytes) -> str:
@@ -92,6 +91,7 @@ def check_part_size(file_path: Path, anticipated_size: int) -> None:
         )
 
 
+# pylint: disable=too-many-arguments
 def upload_part(
     storage_dao: ObjectStorageDao,
     upload_id: str,
@@ -112,6 +112,7 @@ def upload_part(
     response.raise_for_status()
 
 
+# pylint: disable=too-many-arguments
 def upload_part_of_size(
     storage_dao: ObjectStorageDao,
     upload_id: str,
@@ -120,7 +121,10 @@ def upload_part_of_size(
     size: int,
     part_number: int,
 ):
-    """Generate a bytes object of the specified size and uploads the part to an initialized mulitpart upload."""
+    """
+    Generate a bytes object of the specified size and uploads the part to an initialized
+    mulitpart upload.
+    """
     content = b"\0" * size
     upload_part(
         storage_dao=storage_dao,

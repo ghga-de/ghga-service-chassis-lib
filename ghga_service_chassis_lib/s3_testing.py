@@ -18,8 +18,8 @@ This module contains utilities for testing code created with the functionality
 from the `s3` module.
 """
 
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Generator, List, Optional
 
 import pytest
@@ -30,16 +30,16 @@ from ghga_service_chassis_lib.object_storage_dao import (
     ObjectStorageDao,
 )
 from ghga_service_chassis_lib.object_storage_dao_testing import (
+    DEFAULT_EXISTING_BUCKETS,
+    DEFAULT_EXISTING_OBJECTS,
+    DEFAULT_NON_EXISTING_BUCKETS,
     DEFAULT_NON_EXISTING_OBJECTS,
     ObjectFixture,
     download_and_check_test_file,
     multipart_upload_file,
+    populate_storage,
     upload_file,
     upload_part,
-    DEFAULT_EXISTING_BUCKETS,
-    DEFAULT_EXISTING_OBJECTS,
-    DEFAULT_NON_EXISTING_BUCKETS,
-    populate_storage,
 )
 from ghga_service_chassis_lib.s3 import ObjectStorageS3, S3ConfigBase
 
@@ -125,6 +125,7 @@ def s3_fixture_factory(
 
 # This workflow is defined as a seperate function so that it can also be used
 # outside of the `tests` package:
+# pylint: disable=too-many-arguments
 def typical_workflow(
     storage_client: ObjectStorageDao,
     bucket1_id: str = "mytestbucket1",
@@ -144,7 +145,7 @@ def typical_workflow(
     storage_client.create_bucket(bucket1_id)
 
     print(" - confirm bucket creation")
-    assert storage_client.does_bucket_exist(bucket1_id)
+    assert storage_client.does_bucket_exist(bucket1_id)  # nosec
 
     if use_multipart_upload:
         multipart_upload_file(
@@ -164,7 +165,9 @@ def typical_workflow(
         )
 
     print(" - confirm object upload")
-    assert storage_client.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
+    assert storage_client.does_object_exist(  # nosec
+        bucket_id=bucket1_id, object_id=object_id
+    )
 
     print(" - download and check object")
     download_url1 = storage_client.get_object_download_url(
@@ -185,16 +188,18 @@ def typical_workflow(
     storage_client.delete_object(bucket_id=bucket1_id, object_id=object_id)
 
     print(" - confirm move")
-    assert not storage_client.does_object_exist(
+    assert not storage_client.does_object_exist(  # nosec
         bucket_id=bucket1_id, object_id=object_id
     )
-    assert storage_client.does_object_exist(bucket_id=bucket2_id, object_id=object_id)
+    assert storage_client.does_object_exist(  # nosec
+        bucket_id=bucket2_id, object_id=object_id
+    )
 
     print(f" - delete bucket {bucket1_id}")
     storage_client.delete_bucket(bucket1_id)
 
     print(" - confirm bucket deletion")
-    assert not storage_client.does_bucket_exist(bucket1_id)
+    assert not storage_client.does_bucket_exist(bucket1_id)  # nosec
 
     print(f" - download object from bucket {bucket2_id}")
     download_url2 = storage_client.get_object_download_url(

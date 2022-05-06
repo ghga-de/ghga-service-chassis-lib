@@ -312,6 +312,7 @@ class ObjectStorageDao(DaoGenericBase):
         """
         raise NotImplementedError()
 
+    # pylint: disable=too-many-arguments
     def complete_mulitpart_upload(
         self,
         upload_id: str,

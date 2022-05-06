@@ -32,13 +32,13 @@ from .object_storage_dao import (
     BucketAlreadyExists,
     BucketError,
     BucketNotFoundError,
+    MultiPartUploadConfirmError,
+    MultiPartUploadNotFoundError,
     ObjectAlreadyExistsError,
     ObjectError,
     ObjectNotFoundError,
     ObjectStorageDao,
     ObjectStorageDaoError,
-    MultiPartUploadConfirmError,
-    MultiPartUploadNotFoundError,
     PresignedPostURL,
     validate_bucket_id,
     validate_object_id,
@@ -413,6 +413,9 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         """Checks if a multipart upload with the given ID exists and whether it maps
         to the specified object and bucket. Otherwise, raises UploadNotExistError.
         """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
         try:
             upload_list = self._client.list_multipart_uploads(
                 Bucket=bucket_id,
@@ -426,13 +429,12 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             if upload["UploadId"] == upload_id:
                 if upload["Key"] == object_id:
                     return
-                else:
-                    raise MultiPartUploadNotFoundError(
-                        upload_id=upload_id,
-                        bucket_id=bucket_id,
-                        object_id=object_id,
-                        details="Object ID missmatch",
-                    )
+                raise MultiPartUploadNotFoundError(
+                    upload_id=upload_id,
+                    bucket_id=bucket_id,
+                    object_id=object_id,
+                    details="Object ID missmatch",
+                )
 
         raise MultiPartUploadNotFoundError(
             upload_id=upload_id,
@@ -468,7 +470,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError()
 
-        if not (0 < part_number <= 10000):
+        if not 0 < part_number <= 10000:
             raise ValueError(
                 "The part number must be a non-zero positive integer"
                 + " smaller or equal to 10000"
@@ -493,6 +495,116 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
                 error, bucket_id=bucket_id, object_id=object_id
             ) from error
 
+    def _get_parts_info(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+    ) -> dict:
+        """Get information on parts uploaded as part of the specified multi-part upload."""
+
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        self._assert_mulitpart_upload_exist(
+            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+        )
+
+        try:
+            parts_info = self._client.list_parts(
+                Bucket=bucket_id,
+                Key=object_id,
+                UploadId=upload_id,
+            )
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(
+                error, bucket_id=bucket_id, object_id=object_id
+            ) from error
+        return parts_info
+
+    # pylint: disable=too-many-arguments
+    def _check_uploaded_parts(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        parts_info: dict,
+        anticipated_part_quantity: Optional[int] = None,
+        anticipated_part_size: Optional[int] = None,
+    ) -> None:
+        """Check size and quantity of parts"""
+
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        # check the part quantity:
+        if "Parts" not in parts_info or len(parts_info["Parts"]) == 0:
+            raise MultiPartUploadConfirmError(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                reason="Zero parts received.",
+            )
+
+        part_quantity = len(parts_info["Parts"])
+        if (
+            anticipated_part_quantity is not None
+            and part_quantity != anticipated_part_quantity
+        ):
+            raise MultiPartUploadConfirmError(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                reason=f"Found {part_quantity} parts but expect"
+                + f" {anticipated_part_quantity}.",
+            )
+
+        # check anticipated part size:
+        first_part_size = parts_info["Parts"][0]["Size"]
+        last_part_size = parts_info["Parts"][-1]["Size"]
+        if anticipated_part_size is not None:
+            if first_part_size != anticipated_part_size:
+                raise MultiPartUploadConfirmError(
+                    upload_id=upload_id,
+                    bucket_id=bucket_id,
+                    object_id=object_id,
+                    reason=f"The first part has a size of {first_part_size} bytes but"
+                    + f" expected {anticipated_part_quantity}.",
+                )
+            if last_part_size > anticipated_part_size:
+                raise MultiPartUploadConfirmError(
+                    upload_id=upload_id,
+                    bucket_id=bucket_id,
+                    object_id=object_id,
+                    reason=f"The last part has a size of {last_part_size} bytes which"
+                    + " is larger than the anticipated size of"
+                    + f" {anticipated_part_quantity}.",
+                )
+
+        # check if the last part is not larger than the first one:
+        if last_part_size > first_part_size:
+            raise MultiPartUploadConfirmError(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                reason=f"The last part has a size of {last_part_size} bytes which"
+                + " is larger than the size of the first part that was"
+                + f" {first_part_size}.",
+            )
+
+        # check if all parts (except the last one) conform to the size of the first one:
+        for part in parts_info["Parts"][1 : part_quantity - 1]:
+            if part["Size"] != first_part_size:
+                raise MultiPartUploadConfirmError(
+                    upload_id=upload_id,
+                    bucket_id=bucket_id,
+                    object_id=object_id,
+                    reason=f"Part number {part['PartNumber']} has a size of"
+                    + f" {part['Size']} bytes which is different than the size of the"
+                    + f" first part {first_part_size}.",
+                )
+
+    # pylint: disable=too-many-arguments
     def complete_mulitpart_upload(
         self,
         upload_id: str,
@@ -511,69 +623,20 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError()
 
-        self._assert_mulitpart_upload_exist(
-            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+        parts_info = self._get_parts_info(
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
         )
 
-        # get parts info:
-        try:
-            parts_info = self._client.list_parts(
-                Bucket=bucket_id,
-                Key=object_id,
-                UploadId=upload_id,
-            )
-        except botocore.exceptions.ClientError as error:
-            raise _translate_s3_client_errors(
-                error, bucket_id=bucket_id, object_id=object_id
-            ) from error
-
-        # check the part quantity:
-        part_quantity = len(parts_info["Parts"])
-        if part_quantity == 0:
-            raise MultiPartUploadConfirmError(
-                upload_id=upload_id,
-                bucket_id=bucket_id,
-                object_id=object_id,
-                reason="Zero parts received.",
-            )
-        if (
-            anticipated_part_quantity is not None
-            and part_quantity != anticipated_part_quantity
-        ):
-            raise MultiPartUploadConfirmError(
-                upload_id=upload_id,
-                bucket_id=bucket_id,
-                object_id=object_id,
-                reason=(
-                    f"Found {part_quantity} parts but expect"
-                    + f" {anticipated_part_quantity}.",
-                ),
-            )
-
-        # check part sizes:
-        if anticipated_part_size is not None:
-            # check all parts except the last one:
-            for part in parts_info["Parts"][0 : part_quantity - 1]:
-                if part["Size"] != anticipated_part_size:
-                    raise MultiPartUploadConfirmError(
-                        upload_id=upload_id,
-                        bucket_id=bucket_id,
-                        object_id=object_id,
-                        reason=f"Part number {part['Number']} has a size of"
-                        + f" {part['Size']} bytes but expected"
-                        + f" {anticipated_part_quantity}.",
-                    )
-            # check the size of the last part:
-            last_part = parts_info["Parts"][-1]
-            if last_part["Size"] > anticipated_part_size:
-                raise MultiPartUploadConfirmError(
-                    upload_id=upload_id,
-                    bucket_id=bucket_id,
-                    object_id=object_id,
-                    reason=f"The final part (number {last_part['Number']}) had a size of"
-                    + f" {last_part['Size']} bytes which is larger than the anticipated part"
-                    f" size of {anticipated_part_quantity}.",
-                )
+        self._check_uploaded_parts(
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
+            parts_info=parts_info,
+            anticipated_part_quantity=anticipated_part_quantity,
+            anticipated_part_size=anticipated_part_size,
+        )
 
         # construct eTags list:
         part_etags = [
