@@ -25,6 +25,10 @@ from typing import Optional
 
 from .utils import DaoGenericBase
 
+# constants for multipart upload
+DEFAULT_PART_SIZE = 16 * 1024 * 1024
+MAX_FILE_PART_NUMBER = 10000
+
 
 class ObjectStorageDaoError(RuntimeError):
     """Generic base exceptions for all error related to the DAO base class."""
@@ -245,6 +249,39 @@ class ObjectStorageDao(DaoGenericBase):
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`) and
         a maximum size (bytes) for uploads (`max_upload_size`).
+        """
+        raise NotImplementedError()
+
+    def init_mulitpart_upload(
+        self,
+        bucket_id: str,
+        object_id: str,
+    ) -> str:
+        """Initiates a mulipart upload procedure. Returns the upload ID."""
+        raise NotImplementedError()
+
+    def get_part_upload_url(
+        self, upload_id: str, bucket_id: str, object_id: str, part_number: int
+    ) -> str:
+        """Given a id of an instatiated mulitpart upload along with the corresponding
+        bucket and object ID, it returns a presign URL for uploading a file part with the
+        specified number.
+        Please note: the part number must be a non-zero, positive integer and parts
+        should be uploaded in sequence.
+        """
+        raise NotImplementedError()
+
+    def complete_mulitpart_upload(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        part_tag_mapping: dict[int, str],
+    ) -> None:
+        """Completes a multipart upload with the specified ID. In addition to the
+        corresponding bucket and object id, you also need to provide a dictionary that maps
+        part numbers (keys) to part-specific eTags (values) that were obtained when using
+        the part-specific pre-signed upload URLs.
         """
         raise NotImplementedError()
 

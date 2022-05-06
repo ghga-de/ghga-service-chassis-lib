@@ -20,8 +20,10 @@ Test S3 storage DAO
 from pathlib import Path
 
 import pytest
+from black import nullcontext
 
 from ghga_service_chassis_lib.object_storage_dao import (
+    DEFAULT_PART_SIZE,
     BucketAlreadyExists,
     BucketNotFoundError,
     ObjectAlreadyExistsError,
@@ -30,9 +32,12 @@ from ghga_service_chassis_lib.object_storage_dao import (
 )
 from ghga_service_chassis_lib.object_storage_dao_testing import (
     DEFAULT_NON_EXISTING_OBJECTS,
+    ObjectFixture,
     download_and_check_test_file,
+    multipart_upload_file,
     upload_file,
 )
+from ghga_service_chassis_lib.utils import big_temp_file
 
 from .fixtures.s3 import s3_fixture  # noqa: F401
 
@@ -46,6 +51,8 @@ def typical_workflow(
     object_id: str = DEFAULT_NON_EXISTING_OBJECTS[0].object_id,
     test_file_path: Path = DEFAULT_NON_EXISTING_OBJECTS[0].file_path,
     test_file_md5: str = DEFAULT_NON_EXISTING_OBJECTS[0].md5,
+    use_multipart_upload: bool = True,
+    part_size: int = DEFAULT_PART_SIZE,
 ):
     """
     Run a typical workflow of basic object operations using a S3 service.
@@ -58,13 +65,22 @@ def typical_workflow(
     print(" - confirm bucket creation")
     assert storage_client.does_bucket_exist(bucket1_id)
 
-    print(f" - upload test object {object_id} to bucket")
-    upload_url = storage_client.get_object_upload_url(
-        bucket_id=bucket1_id, object_id=object_id
-    )
-    upload_file(
-        presigned_url=upload_url, file_path=test_file_path, file_md5=test_file_md5
-    )
+    if use_multipart_upload:
+        multipart_upload_file(
+            storage_dao=storage_client,
+            bucket_id=bucket1_id,
+            object_id=object_id,
+            file_path=test_file_path,
+            part_size=part_size,
+        )
+    else:
+        print(f" - upload test object {object_id} to bucket")
+        upload_url = storage_client.get_object_upload_url(
+            bucket_id=bucket1_id, object_id=object_id
+        )
+        upload_file(
+            presigned_url=upload_url, file_path=test_file_path, file_md5=test_file_md5
+        )
 
     print(" - confirm object upload")
     assert storage_client.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
@@ -110,19 +126,31 @@ def typical_workflow(
     print("Done.")
 
 
-def test_typical_workflow(s3_fixture):  # noqa: F811
+@pytest.mark.parametrize("use_multipart_upload", [True, False])
+def test_typical_workflow(use_multipart_upload: bool, s3_fixture):  # noqa: F811
     """
     Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
     """
-    object_fixture = s3_fixture.non_existing_objects[0]
-    typical_workflow(
-        storage_client=s3_fixture.storage,
-        bucket1_id=s3_fixture.non_existing_buckets[0],
-        bucket2_id=s3_fixture.non_existing_buckets[1],
-        object_id=object_fixture.object_id,
-        test_file_md5=object_fixture.md5,
-        test_file_path=object_fixture.file_path,
-    )
+    with (
+        big_temp_file(size=20 * 1024 * 1024) if use_multipart_upload else nullcontext()
+    ) as temp_file:
+        object_fixture = (
+            ObjectFixture(
+                file_path=temp_file.name, bucket_id="", object_id="some-big-file"
+            )
+            if use_multipart_upload
+            else s3_fixture.non_existing_objects[0]
+        )
+
+        typical_workflow(
+            storage_client=s3_fixture.storage,
+            bucket1_id=s3_fixture.non_existing_buckets[0],
+            bucket2_id=s3_fixture.non_existing_buckets[1],
+            object_id=object_fixture.object_id,
+            test_file_md5=object_fixture.md5,
+            test_file_path=object_fixture.file_path,
+            use_multipart_upload=use_multipart_upload,
+        )
 
 
 def test_object_and_bucket_collisions(s3_fixture):  # noqa: F811

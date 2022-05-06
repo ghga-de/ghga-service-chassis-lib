@@ -403,6 +403,65 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             url=presigned_url["url"], fields=presigned_url["fields"]
         )
 
+    def init_mulitpart_upload(self, bucket_id: str, object_id: str) -> str:
+        """Initiates a mulipart upload procedure. Returns the upload ID."""
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        response = self._client.create_multipart_upload(Bucket=bucket_id, Key=object_id)
+        return response["UploadId"]
+
+    def get_part_upload_url(
+        self, upload_id: str, bucket_id: str, object_id: str, part_number: int
+    ) -> str:
+        """Given a id of an instatiated mulitpart upload along with the corresponding
+        bucket and object ID, it returns a presign URL for uploading a file part with the
+        specified number.
+        Please note: the part number must be a non-zero, positive integer and parts
+        should be uploaded in sequence.
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        if part_number < 1:
+            raise ValueError("The part number must be a non-zero positive integer.")
+
+        return self._client.generate_presigned_url(
+            ClientMethod="upload_part",
+            Params={
+                "Bucket": bucket_id,
+                "Key": object_id,
+                "UploadId": upload_id,
+                "PartNumber": part_number,
+            },
+        )
+
+    def complete_mulitpart_upload(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        part_tag_mapping: dict[int, str],
+    ) -> None:
+        """Completes a multipart upload with the specified ID. In addition to the
+        corresponding bucket and object id, you also need to provide a dictionary that maps
+        part numbers (keys) to part-specific eTags (values) that were obtained when using
+        the part-specific pre-signed upload URLs.
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+        parts = [
+            {"ETag": etag, "PartNumber": number}
+            for number, etag in part_tag_mapping.items()
+        ]
+
+        self._client.complete_multipart_upload(
+            Bucket=bucket_id,
+            Key=object_id,
+            MultipartUpload={"Parts": parts},
+            UploadId=upload_id,
+        )
+
     def get_object_download_url(
         self, bucket_id: str, object_id: str, expires_after: int = 86400
     ) -> str:

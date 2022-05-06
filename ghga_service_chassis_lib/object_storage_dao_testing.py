@@ -19,13 +19,19 @@ from the `object_storage_dao` module.
 """
 
 import hashlib
+import os
 from pathlib import Path
 from typing import List
 
 import requests
 from pydantic import BaseModel, validator
 
-from .object_storage_dao import ObjectStorageDao, PresignedPostURL
+from .object_storage_dao import (
+    DEFAULT_PART_SIZE,
+    MAX_FILE_PART_NUMBER,
+    ObjectStorageDao,
+    PresignedPostURL,
+)
 from .utils import TEST_FILE_PATHS
 
 
@@ -68,6 +74,67 @@ def upload_file(presigned_url: PresignedPostURL, file_path: Path, file_md5: str)
             presigned_url.url, data=presigned_url.fields, files=files, headers=headers
         )
         response.raise_for_status()
+
+
+def check_part_size(file_path: Path, anticipated_size: int) -> None:
+    """Check if the anticipated part size can be used to upload the specified file
+    using the maximum number of file parts. Raises and exception otherwise."""
+    file_size = os.path.getsize(file_path)
+    if (file_size / anticipated_size) > MAX_FILE_PART_NUMBER:
+        raise RuntimeError(
+            f"The specified file ('{file_path}') cannot to be uploaded"
+            + f" using the specified part size ({anticipated_size}') since the maximum number"
+            + f" of parts ({MAX_FILE_PART_NUMBER}) would be exceeded. Please choose a larger"
+            + " part size."
+        )
+
+
+def multipart_upload_file(
+    storage_dao: ObjectStorageDao,
+    bucket_id: str,
+    object_id: str,
+    file_path: Path,
+    part_size: int = DEFAULT_PART_SIZE,
+) -> None:
+    """Uploads the test file to the specified URL"""
+
+    check_part_size(file_path=file_path, anticipated_size=part_size)
+
+    print(f" - initiate multipart upload for test object {object_id}")
+    upload_id = storage_dao.init_mulitpart_upload(
+        bucket_id=bucket_id, object_id=object_id
+    )
+
+    parts_tag_mapping: dict[int, str] = {}
+    with open(file_path, "rb") as test_file:
+        for part_number in range(1, MAX_FILE_PART_NUMBER + 1):
+            print(f" - read {part_size} from file: {str(file_path)}")
+            file_part = test_file.read(part_size)
+
+            if not file_part:
+                print(f" - everything uploaded with {part_number} parts")
+                break
+
+            print(f" - get upload url for part number: {part_number}")
+            upload_url = storage_dao.get_part_upload_url(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                part_number=part_number,
+            )
+
+            print(f" - upload part number {part_number} using upload url")
+            response = requests.put(upload_url, data=file_part)
+            response.raise_for_status()
+            parts_tag_mapping[part_number] = response.headers["ETag"]
+
+    print(" - complete mulitpart upload")
+    storage_dao.complete_mulitpart_upload(
+        upload_id=upload_id,
+        bucket_id=bucket_id,
+        object_id=object_id,
+        part_tag_mapping=parts_tag_mapping,
+    )
 
 
 def download_and_check_test_file(presigned_url: str, expected_md5: str):

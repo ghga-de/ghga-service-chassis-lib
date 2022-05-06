@@ -1,7 +1,7 @@
 ![tests](https://github.com/ghga-de/ghga-service-chassis-lib/actions/workflows/unit_and_int_tests.yaml/badge.svg)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/ghga_service_chassis_lib.svg)](https://pypi.python.org/pypi/ghga_service_chassis_lib/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/ghga_service_chassis_lib.svg)](https://pypi.python.org/pypi/ghga_service_chassis_lib/)
-[![codecov](https://codecov.io/gh/ghga-de/ghga-service-chassis-lib/branch/main/graph/badge.svg?token=V1VYRI4SEC)](https://codecov.io/gh/ghga-de/ghga-service-chassis-lib)
+[![Coverage Status](https://coveralls.io/repos/github/ghga-de/ghga_service_chassis_lib/badge.svg?branch=main)](https://coveralls.io/github/ghga-de/ghga_service_chassis_lib?branch=main)
 
 # ghga-service-chassis-lib
 This python library serves as chassis for the microservices developed at
