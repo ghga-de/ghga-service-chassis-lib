@@ -17,122 +17,45 @@
 Test S3 storage DAO
 """
 
-from pathlib import Path
+from typing import Optional
 
 import pytest
 from black import nullcontext
 
 from ghga_service_chassis_lib.object_storage_dao import (
-    DEFAULT_PART_SIZE,
     BucketAlreadyExists,
     BucketNotFoundError,
     ObjectAlreadyExistsError,
     ObjectNotFoundError,
-    ObjectStorageDao,
+    MultiPartUploadNotFoundError,
+    MultiPartUploadConfirmError,
 )
 from ghga_service_chassis_lib.object_storage_dao_testing import (
-    DEFAULT_NON_EXISTING_OBJECTS,
     ObjectFixture,
-    download_and_check_test_file,
-    multipart_upload_file,
-    upload_file,
+    upload_part_of_size,
+    MiB,
 )
+from ghga_service_chassis_lib.s3_testing import (
+    S3Fixture,
+    typical_workflow,
+    get_initialized_upload,
+    prepare_non_completed_upload,
+)
+
 from ghga_service_chassis_lib.utils import big_temp_file
 
 from .fixtures.s3 import s3_fixture  # noqa: F401
 
 
-# This workflow is defined as a seperate function so that it can also be used
-# outside of the `tests` package:
-def typical_workflow(
-    storage_client: ObjectStorageDao,
-    bucket1_id: str = "mytestbucket1",
-    bucket2_id: str = "mytestbucket2",
-    object_id: str = DEFAULT_NON_EXISTING_OBJECTS[0].object_id,
-    test_file_path: Path = DEFAULT_NON_EXISTING_OBJECTS[0].file_path,
-    test_file_md5: str = DEFAULT_NON_EXISTING_OBJECTS[0].md5,
-    use_multipart_upload: bool = True,
-    part_size: int = DEFAULT_PART_SIZE,
-):
-    """
-    Run a typical workflow of basic object operations using a S3 service.
-    """
-    print("Run a workflow for testing basic object operations using a S3 service:")
-
-    print(f" - create new bucket {bucket1_id}")
-    storage_client.create_bucket(bucket1_id)
-
-    print(" - confirm bucket creation")
-    assert storage_client.does_bucket_exist(bucket1_id)
-
-    if use_multipart_upload:
-        multipart_upload_file(
-            storage_dao=storage_client,
-            bucket_id=bucket1_id,
-            object_id=object_id,
-            file_path=test_file_path,
-            part_size=part_size,
-        )
-    else:
-        print(f" - upload test object {object_id} to bucket")
-        upload_url = storage_client.get_object_upload_url(
-            bucket_id=bucket1_id, object_id=object_id
-        )
-        upload_file(
-            presigned_url=upload_url, file_path=test_file_path, file_md5=test_file_md5
-        )
-
-    print(" - confirm object upload")
-    assert storage_client.does_object_exist(bucket_id=bucket1_id, object_id=object_id)
-
-    print(" - download and check object")
-    download_url1 = storage_client.get_object_download_url(
-        bucket_id=bucket1_id, object_id=object_id
-    )
-    download_and_check_test_file(
-        presigned_url=download_url1, expected_md5=test_file_md5
-    )
-
-    print(f" - create a second bucket {bucket2_id} and move the object there")
-    storage_client.create_bucket(bucket2_id)
-    storage_client.copy_object(
-        source_bucket_id=bucket1_id,
-        source_object_id=object_id,
-        dest_bucket_id=bucket2_id,
-        dest_object_id=object_id,
-    )
-    storage_client.delete_object(bucket_id=bucket1_id, object_id=object_id)
-
-    print(" - confirm move")
-    assert not storage_client.does_object_exist(
-        bucket_id=bucket1_id, object_id=object_id
-    )
-    assert storage_client.does_object_exist(bucket_id=bucket2_id, object_id=object_id)
-
-    print(f" - delete bucket {bucket1_id}")
-    storage_client.delete_bucket(bucket1_id)
-
-    print(" - confirm bucket deletion")
-    assert not storage_client.does_bucket_exist(bucket1_id)
-
-    print(f" - download object from bucket {bucket2_id}")
-    download_url2 = storage_client.get_object_download_url(
-        bucket_id=bucket2_id, object_id=object_id
-    )
-    download_and_check_test_file(
-        presigned_url=download_url2, expected_md5=test_file_md5
-    )
-
-    print("Done.")
-
-
 @pytest.mark.parametrize("use_multipart_upload", [True, False])
-def test_typical_workflow(use_multipart_upload: bool, s3_fixture):  # noqa: F811
+def test_typical_workflow(
+    use_multipart_upload: bool, s3_fixture: S3Fixture
+):  # noqa: F811
     """
     Tests all methods of the ObjectStorageS3 DAO implementation in one long workflow.
     """
     with (
-        big_temp_file(size=20 * 1024 * 1024) if use_multipart_upload else nullcontext()
+        big_temp_file(size=20 * MiB) if use_multipart_upload else nullcontext()
     ) as temp_file:
         object_fixture = (
             ObjectFixture(
@@ -153,7 +76,7 @@ def test_typical_workflow(use_multipart_upload: bool, s3_fixture):  # noqa: F811
         )
 
 
-def test_object_and_bucket_collisions(s3_fixture):  # noqa: F811
+def test_object_and_bucket_collisions(s3_fixture: S3Fixture):  # noqa: F811
     """
     Tests whether overwriting (re-creation, re-upload, or copy to exisitng object) fails with the expected error.
     """
@@ -176,7 +99,7 @@ def test_object_and_bucket_collisions(s3_fixture):  # noqa: F811
         )
 
 
-def test_handling_non_existing_file_and_bucket(s3_fixture):  # noqa: F811
+def test_handling_non_existing_file_and_bucket(s3_fixture: S3Fixture):  # noqa: F811
     """
     Tests whether the re-creaction of an existing bucket fails with the expected error.
     """
@@ -230,4 +153,128 @@ def test_handling_non_existing_file_and_bucket(s3_fixture):  # noqa: F811
     with pytest.raises(ObjectNotFoundError):
         s3_fixture.storage.delete_object(
             bucket_id=existing_object.bucket_id, object_id=non_existing_object.object_id
+        )
+
+
+@pytest.mark.parametrize(
+    "upload_id_correct, bucket_id_correct, object_id_correct, exception",
+    [
+        (True, True, True, None),
+        (False, True, True, MultiPartUploadNotFoundError),
+        (True, False, True, BucketNotFoundError),
+        (True, True, False, MultiPartUploadNotFoundError),
+    ],
+)
+def test_using_non_existing_upload(
+    upload_id_correct: bool,
+    bucket_id_correct: bool,
+    object_id_correct: bool,
+    exception,
+    s3_fixture,
+):
+    """
+    Makes sure that using a non existing upload_id-bucket_id-object_id combination
+    throws the right error.
+    """
+    # prepare a non-completed upload:
+    real_upload_id, real_bucket_id, real_object_id = prepare_non_completed_upload(
+        s3_fixture
+    )
+
+    # prepare some calls:
+    upload_id = real_upload_id if upload_id_correct else "wrong-upload"
+    bucket_id = real_bucket_id if bucket_id_correct else "wrong-bucket"
+    object_id = real_object_id if object_id_correct else "wrong-object"
+    calls = [
+        lambda: s3_fixture.storage._assert_mulitpart_upload_exist(
+            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+        ),
+        lambda: s3_fixture.storage.get_part_upload_url(
+            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id, part_number=1
+        ),
+        lambda: s3_fixture.storage.complete_mulitpart_upload(
+            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+        ),
+    ]
+
+    # run the calls and expect exceptions:
+    for call in calls:
+        with (pytest.raises(exception) if exception else nullcontext()):
+            call()
+
+
+@pytest.mark.parametrize(
+    "part_number, exception",
+    [(0, ValueError), (1, None), (10000, None), (10001, ValueError)],
+)
+def test_invalid_part_number(
+    part_number: int, exception: Optional[Exception], s3_fixture
+):
+    """Check that invalid part numbers are cached correcly."""
+
+    upload_id, bucket_id, object_id = prepare_non_completed_upload(s3_fixture)
+
+    with (pytest.raises(exception) if exception else nullcontext()):
+        _ = s3_fixture.storage.get_part_upload_url(
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
+            part_number=part_number,
+        )
+
+
+@pytest.mark.parametrize(
+    "part_sizes, anticipated_part_size, anticipated_part_quantity, exception",
+    [
+        ([10 * MiB, 10 * MiB, 1 * MiB], None, None, None),
+        ([10 * MiB, 10 * MiB, 1 * MiB], 10 * MiB, 3, None),
+        ([], None, None, MultiPartUploadConfirmError),  # zero parts uploaded
+        (
+            [10 * MiB, 10 * MiB, 11 * MiB],
+            None,
+            2,
+            MultiPartUploadConfirmError,
+        ),  # Missmatch with anticipated parts
+        (
+            [10 * MiB, 5 * MiB, 1 * MiB],
+            None,
+            None,
+            MultiPartUploadConfirmError,
+        ),  # heterogenous part sizes
+        (
+            [10 * MiB, 10 * MiB, 11 * MiB],
+            10 * MiB,
+            None,
+            MultiPartUploadConfirmError,
+        ),  # Too large last part
+    ],
+)
+def test_complete_multipart_upload(
+    part_sizes: list[str],
+    anticipated_part_size: Optional[int],
+    anticipated_part_quantity: Optional[int],
+    exception: Optional[Exception],
+    s3_fixture,
+):
+    """
+    Test the complete_multipart_upload method.
+    """
+    upload_id, bucket_id, object_id = get_initialized_upload(s3_fixture)
+    for part_idx, part_size in enumerate(part_sizes):
+        upload_part_of_size(
+            storage_dao=s3_fixture.storage,
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
+            size=part_size,
+            part_number=part_idx + 1,
+        )
+
+    with (pytest.raises(exception) if exception else nullcontext()):
+        s3_fixture.storage.complete_mulitpart_upload(
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
+            anticipated_part_quantity=anticipated_part_quantity,
+            anticipated_part_size=anticipated_part_size,
         )
