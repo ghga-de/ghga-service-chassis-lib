@@ -326,6 +326,7 @@ class ObjectStorageDao(DaoGenericBase):
         and an anticipated part quantity.
         This ensures that exactly the specified number of parts exist and that all parts
         (except the last one) have the specified size.
+
         """
         raise NotImplementedError()
 
