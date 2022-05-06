@@ -23,7 +23,6 @@ import pytest
 from black import nullcontext
 
 from ghga_service_chassis_lib.object_storage_dao import (
-    DEFAULT_PART_SIZE,
     BucketAlreadyExists,
     BucketNotFoundError,
     MultiPartUploadConfirmError,
@@ -42,7 +41,6 @@ from ghga_service_chassis_lib.s3_testing import (
     prepare_non_completed_upload,
     typical_workflow,
 )
-
 from ghga_service_chassis_lib.utils import big_temp_file
 
 from .fixtures.s3 import s3_fixture  # noqa: F401
