@@ -198,7 +198,7 @@ def test_using_non_existing_upload(
 
     # run the calls and expect exceptions:
     for call in calls:
-        with (pytest.raises(exception) if exception else nullcontext()):
+        with (pytest.raises(exception) if exception else nullcontext()):  # type: ignore
             call()
 
 
@@ -215,7 +215,7 @@ def test_invalid_part_number(
 
     upload_id, bucket_id, object_id = prepare_non_completed_upload(s3_fixture)
 
-    with (pytest.raises(exception) if exception else nullcontext()):
+    with (pytest.raises(exception) if exception else nullcontext()):  # type: ignore
         _ = s3_fixture.storage.get_part_upload_url(
             upload_id=upload_id,
             bucket_id=bucket_id,
@@ -283,7 +283,7 @@ def test_complete_multipart_upload(
             part_number=part_idx + 1,
         )
 
-    with (pytest.raises(exception) if exception else nullcontext()):
+    with (pytest.raises(exception) if exception else nullcontext()):  # type: ignore
         s3_fixture.storage.complete_mulitpart_upload(
             upload_id=upload_id,
             bucket_id=bucket_id,
