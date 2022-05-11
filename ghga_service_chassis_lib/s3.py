@@ -32,6 +32,8 @@ from .object_storage_dao import (
     BucketAlreadyExists,
     BucketError,
     BucketNotFoundError,
+    MultiPartUploadConfirmError,
+    MultiPartUploadNotFoundError,
     ObjectAlreadyExistsError,
     ObjectError,
     ObjectNotFoundError,
@@ -143,6 +145,8 @@ def _translate_s3_client_errors(
         exception = BucketAlreadyExists(bucket_id=bucket_id)
     elif error_code == "NoSuchKey":
         exception = ObjectNotFoundError(object_id=object_id)
+    elif error_code == "ObjectAlreadyInActiveTierError":
+        exception = ObjectAlreadyExistsError(object_id=object_id)
     elif error_code == "ObjectAlreadyInActiveTierError":
         exception = ObjectAlreadyExistsError(object_id=object_id)
     else:
@@ -402,6 +406,256 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         return PresignedPostURL(
             url=presigned_url["url"], fields=presigned_url["fields"]
         )
+
+    def _assert_mulitpart_upload_exist(
+        self, upload_id: str, bucket_id: str, object_id: str
+    ) -> None:
+        """Checks if a multipart upload with the given ID exists and whether it maps
+        to the specified object and bucket. Otherwise, raises UploadNotExistError.
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        try:
+            upload_list = self._client.list_multipart_uploads(
+                Bucket=bucket_id,
+            )
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(
+                error, bucket_id=bucket_id, object_id=object_id
+            ) from error
+
+        for upload in upload_list["Uploads"]:
+            if upload["UploadId"] == upload_id:
+                if upload["Key"] == object_id:
+                    return
+                raise MultiPartUploadNotFoundError(
+                    upload_id=upload_id,
+                    bucket_id=bucket_id,
+                    object_id=object_id,
+                    details="Object ID missmatch",
+                )
+
+        raise MultiPartUploadNotFoundError(
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
+        )
+
+    def init_mulitpart_upload(self, bucket_id: str, object_id: str) -> str:
+        """Initiates a mulipart upload procedure. Returns the upload ID."""
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        try:
+            response = self._client.create_multipart_upload(
+                Bucket=bucket_id, Key=object_id
+            )
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(
+                error, bucket_id=bucket_id, object_id=object_id
+            ) from error
+
+        return response["UploadId"]
+
+    def get_part_upload_url(
+        self, upload_id: str, bucket_id: str, object_id: str, part_number: int
+    ) -> str:
+        """Given a id of an instatiated mulitpart upload along with the corresponding
+        bucket and object ID, it returns a presign URL for uploading a file part with the
+        specified number.
+        Please note: the part number must be a non-zero, positive integer and parts
+        should be uploaded in sequence.
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        if not 0 < part_number <= 10000:
+            raise ValueError(
+                "The part number must be a non-zero positive integer"
+                + " smaller or equal to 10000"
+            )
+
+        self._assert_mulitpart_upload_exist(
+            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+        )
+
+        try:
+            return self._client.generate_presigned_url(
+                ClientMethod="upload_part",
+                Params={
+                    "Bucket": bucket_id,
+                    "Key": object_id,
+                    "UploadId": upload_id,
+                    "PartNumber": part_number,
+                },
+            )
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(
+                error, bucket_id=bucket_id, object_id=object_id
+            ) from error
+
+    def _get_parts_info(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+    ) -> dict:
+        """Get information on parts uploaded as part of the specified multi-part upload."""
+
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        self._assert_mulitpart_upload_exist(
+            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+        )
+
+        try:
+            parts_info = self._client.list_parts(
+                Bucket=bucket_id,
+                Key=object_id,
+                UploadId=upload_id,
+            )
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(
+                error, bucket_id=bucket_id, object_id=object_id
+            ) from error
+        return parts_info
+
+    # pylint: disable=too-many-arguments
+    def _check_uploaded_parts(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        parts_info: dict,
+        anticipated_part_quantity: Optional[int] = None,
+        anticipated_part_size: Optional[int] = None,
+    ) -> None:
+        """Check size and quantity of parts"""
+
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        # check the part quantity:
+        if "Parts" not in parts_info or len(parts_info["Parts"]) == 0:
+            raise MultiPartUploadConfirmError(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                reason="Zero parts received.",
+            )
+
+        part_quantity = len(parts_info["Parts"])
+        if (
+            anticipated_part_quantity is not None
+            and part_quantity != anticipated_part_quantity
+        ):
+            raise MultiPartUploadConfirmError(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                reason=f"Found {part_quantity} parts but expect"
+                + f" {anticipated_part_quantity}.",
+            )
+
+        # check anticipated part size:
+        first_part_size = parts_info["Parts"][0]["Size"]
+        last_part_size = parts_info["Parts"][-1]["Size"]
+        if anticipated_part_size is not None:
+            if first_part_size != anticipated_part_size:
+                raise MultiPartUploadConfirmError(
+                    upload_id=upload_id,
+                    bucket_id=bucket_id,
+                    object_id=object_id,
+                    reason=f"The first part has a size of {first_part_size} bytes but"
+                    + f" expected {anticipated_part_quantity}.",
+                )
+            if last_part_size > anticipated_part_size:
+                raise MultiPartUploadConfirmError(
+                    upload_id=upload_id,
+                    bucket_id=bucket_id,
+                    object_id=object_id,
+                    reason=f"The last part has a size of {last_part_size} bytes which"
+                    + " is larger than the anticipated size of"
+                    + f" {anticipated_part_quantity}.",
+                )
+
+        # check if the last part is not larger than the first one:
+        if last_part_size > first_part_size:
+            raise MultiPartUploadConfirmError(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                reason=f"The last part has a size of {last_part_size} bytes which"
+                + " is larger than the size of the first part that was"
+                + f" {first_part_size}.",
+            )
+
+        # check if all parts (except the last one) conform to the size of the first one:
+        for part in parts_info["Parts"][1 : part_quantity - 1]:
+            if part["Size"] != first_part_size:
+                raise MultiPartUploadConfirmError(
+                    upload_id=upload_id,
+                    bucket_id=bucket_id,
+                    object_id=object_id,
+                    reason=f"Part number {part['PartNumber']} has a size of"
+                    + f" {part['Size']} bytes which is different than the size of the"
+                    + f" first part {first_part_size}.",
+                )
+
+    # pylint: disable=too-many-arguments
+    def complete_mulitpart_upload(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        anticipated_part_quantity: Optional[int] = None,
+        anticipated_part_size: Optional[int] = None,
+    ) -> None:
+        """Completes a multipart upload with the specified ID. In addition to the
+        corresponding bucket and object id, you also specify an anticipated part size
+        and an anticipated part quantity.
+        This ensures that exactly the specified number of parts exist and that all parts
+        (except the last one) have the specified size.
+        """
+
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        parts_info = self._get_parts_info(
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
+        )
+
+        self._check_uploaded_parts(
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
+            parts_info=parts_info,
+            anticipated_part_quantity=anticipated_part_quantity,
+            anticipated_part_size=anticipated_part_size,
+        )
+
+        # construct eTags list:
+        part_etags = [
+            {"ETag": part["ETag"], "PartNumber": part["PartNumber"]}
+            for part in parts_info["Parts"]
+        ]
+
+        # confirm the upload:
+        try:
+            self._client.complete_multipart_upload(
+                Bucket=bucket_id,
+                Key=object_id,
+                MultipartUpload={"Parts": part_etags},
+                UploadId=upload_id,
+            )
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(
+                error, bucket_id=bucket_id, object_id=object_id
+            ) from error
 
     def get_object_download_url(
         self, bucket_id: str, object_id: str, expires_after: int = 86400

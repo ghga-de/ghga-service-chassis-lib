@@ -28,7 +28,7 @@ import typer
 
 from ghga_service_chassis_lib.object_storage_dao import ObjectStorageDao
 from ghga_service_chassis_lib.s3 import ObjectStorageS3, S3ConfigBase
-from tests.integration.test_s3 import typical_workflow
+from ghga_service_chassis_lib.s3_testing import typical_workflow
 
 
 def cleanup_buckets_and_objects(

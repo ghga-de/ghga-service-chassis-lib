@@ -17,7 +17,9 @@
 
 import os
 import signal
+from contextlib import contextmanager
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Callable, Optional
 
 from pydantic import BaseSettings
@@ -119,3 +121,21 @@ def exec_with_timeout(
 def create_fake_drs_uri(object_id: str):
     """Create a fake DRS URI based on an object id."""
     return f"drs://www.example.org/{object_id}"
+
+
+@contextmanager
+def big_temp_file(size: int):
+    """Generates a big file with approximately the specified size in bytes."""
+    current_size = 0
+    current_number = 0
+    next_number = 1
+    with NamedTemporaryFile("w+b") as temp_file:
+        while current_size <= size:
+            byte_addition = f"{current_number}\n".encode("ASCII")
+            current_size += len(byte_addition)
+            temp_file.write(byte_addition)
+            previous_number = current_number
+            current_number = next_number
+            next_number = previous_number + current_number
+        temp_file.flush()
+        yield temp_file

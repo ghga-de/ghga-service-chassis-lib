@@ -25,6 +25,10 @@ from typing import Optional
 
 from .utils import DaoGenericBase
 
+# constants for multipart upload
+DEFAULT_PART_SIZE = 16 * 1024 * 1024
+MAX_FILE_PART_NUMBER = 10000
+
 
 class ObjectStorageDaoError(RuntimeError):
     """Generic base exceptions for all error related to the DAO base class."""
@@ -116,6 +120,46 @@ class ObjectIdValidationError(ObjectError):
         super().__init__(message)
 
 
+class MultiPartUploadError(ObjectError):
+    """Thrown when a confirmation of an upload is rejected."""
+
+
+class MultiPartUploadNotFoundError(MultiPartUploadError):
+    """Thrown when a upload with the specified upload, bucket, and object id was not found."""
+
+    def __init__(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        details: Optional[str] = None,
+    ):
+        message = (
+            f"The upload with ID '{upload_id}' for object '{object_id}'"
+            + f" in bucket '{bucket_id} could not be found"
+            + (f": {details}." if details else ".")
+        )
+        super().__init__(message)
+
+
+class MultiPartUploadConfirmError(MultiPartUploadError):
+    """Thrown when a confirmation of an upload is rejected."""
+
+    def __init__(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        reason: Optional[str] = None,
+    ):
+        message = (
+            f"The confirmation of upload '{upload_id}' for object '{object_id}'"
+            + f" in bucket '{bucket_id} was rejected"
+            + (f": {reason}." if reason else ".")
+        )
+        super().__init__(message)
+
+
 def validate_bucket_id(bucket_id: str):
     """Check whether a bucket id follows the recommended naming pattern.
     This is roughly based on:
@@ -187,6 +231,7 @@ class ObjectStorageDao(DaoGenericBase):
                 - ObjectIdValidationError
                 - ObjectNotFoundError
                 - ObjectAlreadyExistsError
+            - UploadConfirmationError
     For raising BucketIdValidationError and ObjectIdValidationError, it is recommended
     that the implementation uses the functions validate_bucket_id and
     validate_object_id.
@@ -245,6 +290,43 @@ class ObjectStorageDao(DaoGenericBase):
         id (`object_id`) to the bucket with the specified id (`bucket_id`).
         You may also specify a custom expiry duration in seconds (`expires_after`) and
         a maximum size (bytes) for uploads (`max_upload_size`).
+        """
+        raise NotImplementedError()
+
+    def init_mulitpart_upload(
+        self,
+        bucket_id: str,
+        object_id: str,
+    ) -> str:
+        """Initiates a mulipart upload procedure. Returns the upload ID."""
+        raise NotImplementedError()
+
+    def get_part_upload_url(
+        self, upload_id: str, bucket_id: str, object_id: str, part_number: int
+    ) -> str:
+        """Given a id of an instatiated mulitpart upload along with the corresponding
+        bucket and object ID, it returns a presign URL for uploading a file part with the
+        specified number.
+        Please note: the part number must be a non-zero, positive integer and parts
+        should be uploaded in sequence.
+        """
+        raise NotImplementedError()
+
+    # pylint: disable=too-many-arguments
+    def complete_mulitpart_upload(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        anticipated_part_quantity: Optional[int] = None,
+        anticipated_part_size: Optional[int] = None,
+    ) -> None:
+        """Completes a multipart upload with the specified ID. In addition to the
+        corresponding bucket and object id, you also specify an anticipated part size
+        and an anticipated part quantity.
+        This ensures that exactly the specified number of parts exist and that all parts
+        (except the last one) have the specified size.
+
         """
         raise NotImplementedError()
 
