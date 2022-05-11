@@ -34,6 +34,8 @@ from .object_storage_dao import (
 )
 from .utils import TEST_FILE_PATHS
 
+MEBIBYTE = 1024 * 1024
+
 
 def calc_md5(content: bytes) -> str:
     """
@@ -89,6 +91,51 @@ def check_part_size(file_path: Path, anticipated_size: int) -> None:
         )
 
 
+# pylint: disable=too-many-arguments
+def upload_part(
+    storage_dao: ObjectStorageDao,
+    upload_id: str,
+    bucket_id: str,
+    object_id: str,
+    content: bytes,
+    part_number: int = 1,
+):
+    """Upload the specified content as part to an initialized mulitpart upload."""
+
+    upload_url = storage_dao.get_part_upload_url(
+        upload_id=upload_id,
+        bucket_id=bucket_id,
+        object_id=object_id,
+        part_number=part_number,
+    )
+    response = requests.put(upload_url, data=content)
+    response.raise_for_status()
+
+
+# pylint: disable=too-many-arguments
+def upload_part_of_size(
+    storage_dao: ObjectStorageDao,
+    upload_id: str,
+    bucket_id: str,
+    object_id: str,
+    size: int,
+    part_number: int,
+):
+    """
+    Generate a bytes object of the specified size and uploads the part to an initialized
+    mulitpart upload.
+    """
+    content = b"\0" * size
+    upload_part(
+        storage_dao=storage_dao,
+        upload_id=upload_id,
+        bucket_id=bucket_id,
+        object_id=object_id,
+        content=content,
+        part_number=part_number,
+    )
+
+
 def multipart_upload_file(
     storage_dao: ObjectStorageDao,
     bucket_id: str,
@@ -105,7 +152,6 @@ def multipart_upload_file(
         bucket_id=bucket_id, object_id=object_id
     )
 
-    parts_tag_mapping: dict[int, str] = {}
     with open(file_path, "rb") as test_file:
         for part_number in range(1, MAX_FILE_PART_NUMBER + 1):
             print(f" - read {part_size} from file: {str(file_path)}")
@@ -115,25 +161,21 @@ def multipart_upload_file(
                 print(f" - everything uploaded with {part_number} parts")
                 break
 
-            print(f" - get upload url for part number: {part_number}")
-            upload_url = storage_dao.get_part_upload_url(
+            print(f" - upload part number {part_number} using upload url")
+            upload_part(
+                storage_dao=storage_dao,
                 upload_id=upload_id,
                 bucket_id=bucket_id,
                 object_id=object_id,
+                content=file_part,
                 part_number=part_number,
             )
-
-            print(f" - upload part number {part_number} using upload url")
-            response = requests.put(upload_url, data=file_part)
-            response.raise_for_status()
-            parts_tag_mapping[part_number] = response.headers["ETag"]
 
     print(" - complete mulitpart upload")
     storage_dao.complete_mulitpart_upload(
         upload_id=upload_id,
         bucket_id=bucket_id,
         object_id=object_id,
-        part_tag_mapping=parts_tag_mapping,
     )
 
 
