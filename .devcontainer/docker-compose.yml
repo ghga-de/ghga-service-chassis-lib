@@ -69,7 +69,7 @@ services:
       - 27017:27017
 
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:0.11.4
     ports:
       - "4566:4566"
     environment:
