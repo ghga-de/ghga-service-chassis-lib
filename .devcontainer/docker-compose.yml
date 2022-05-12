@@ -41,8 +41,6 @@ services:
     container_name: broker
     depends_on:
       - zookeeper
-    ports:
-      - 29092:29092
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -50,12 +48,13 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    # useful ports: 29092
 
   rabbitmq:
     image: rabbitmq:3-management
-    ports:
-      - 5672:5672
-      - 15672:15672
+    # useful ports:
+    # 5672 - broker
+    # 15672 - dashboard
 
   mongo_db:
     image: mongo:4.4.6
@@ -65,13 +64,10 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-    ports:
-      - 27017:27017
+    # useful ports: 27017
 
   localstack:
-    image: localstack/localstack
-    ports:
-      - "4566:4566"
+    image: localstack/localstack:0.11.4
     environment:
       SERVICES: s3
       DEFAULT_REGION: eu-west-1
@@ -87,6 +83,7 @@ services:
         target: /tmp/localstack
         volume:
           nocopy: true
+    # useful ports: 4566 - AWS API
 
   postgresql:
     image: postgres:latest
