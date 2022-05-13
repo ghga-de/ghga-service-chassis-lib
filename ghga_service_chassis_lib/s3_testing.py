@@ -219,7 +219,7 @@ def get_initialized_upload(s3_fixture: S3Fixture):
 
     bucket_id = s3_fixture.existing_buckets[0]
     object_id = s3_fixture.non_existing_objects[0].object_id
-    upload_id = s3_fixture.storage.init_mulitpart_upload(
+    upload_id = s3_fixture.storage.init_multipart_upload(
         bucket_id=bucket_id, object_id=object_id
     )
 

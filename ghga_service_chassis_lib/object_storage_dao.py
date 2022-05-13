@@ -293,7 +293,7 @@ class ObjectStorageDao(DaoGenericBase):
         """
         raise NotImplementedError()
 
-    def init_mulitpart_upload(
+    def init_multipart_upload(
         self,
         bucket_id: str,
         object_id: str,
@@ -304,7 +304,7 @@ class ObjectStorageDao(DaoGenericBase):
     def get_part_upload_url(
         self, upload_id: str, bucket_id: str, object_id: str, part_number: int
     ) -> str:
-        """Given a id of an instatiated mulitpart upload along with the corresponding
+        """Given a id of an instantiated multipart upload along with the corresponding
         bucket and object ID, it returns a presign URL for uploading a file part with the
         specified number.
         Please note: the part number must be a non-zero, positive integer and parts
@@ -313,7 +313,7 @@ class ObjectStorageDao(DaoGenericBase):
         raise NotImplementedError()
 
     # pylint: disable=too-many-arguments
-    def complete_mulitpart_upload(
+    def complete_multipart_upload(
         self,
         upload_id: str,
         bucket_id: str,

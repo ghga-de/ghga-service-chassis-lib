@@ -100,7 +100,7 @@ def upload_part(
     content: bytes,
     part_number: int = 1,
 ):
-    """Upload the specified content as part to an initialized mulitpart upload."""
+    """Upload the specified content as part to an initialized multipart upload."""
 
     upload_url = storage_dao.get_part_upload_url(
         upload_id=upload_id,
@@ -123,7 +123,7 @@ def upload_part_of_size(
 ):
     """
     Generate a bytes object of the specified size and uploads the part to an initialized
-    mulitpart upload.
+    multipart upload.
     """
     content = b"\0" * size
     upload_part(
@@ -148,7 +148,7 @@ def multipart_upload_file(
     check_part_size(file_path=file_path, anticipated_size=part_size)
 
     print(f" - initiate multipart upload for test object {object_id}")
-    upload_id = storage_dao.init_mulitpart_upload(
+    upload_id = storage_dao.init_multipart_upload(
         bucket_id=bucket_id, object_id=object_id
     )
 
@@ -171,8 +171,8 @@ def multipart_upload_file(
                 part_number=part_number,
             )
 
-    print(" - complete mulitpart upload")
-    storage_dao.complete_mulitpart_upload(
+    print(" - complete multipart upload")
+    storage_dao.complete_multipart_upload(
         upload_id=upload_id,
         bucket_id=bucket_id,
         object_id=object_id,

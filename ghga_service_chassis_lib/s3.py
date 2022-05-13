@@ -407,7 +407,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             url=presigned_url["url"], fields=presigned_url["fields"]
         )
 
-    def _assert_mulitpart_upload_exist(
+    def _assert_multipart_upload_exist(
         self, upload_id: str, bucket_id: str, object_id: str
     ) -> None:
         """Checks if a multipart upload with the given ID exists and whether it maps
@@ -442,7 +442,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             object_id=object_id,
         )
 
-    def init_mulitpart_upload(self, bucket_id: str, object_id: str) -> str:
+    def init_multipart_upload(self, bucket_id: str, object_id: str) -> str:
         """Initiates a mulipart upload procedure. Returns the upload ID."""
         if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError()
@@ -461,7 +461,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
     def get_part_upload_url(
         self, upload_id: str, bucket_id: str, object_id: str, part_number: int
     ) -> str:
-        """Given a id of an instatiated mulitpart upload along with the corresponding
+        """Given a id of an instantiated multipart upload along with the corresponding
         bucket and object ID, it returns a presign URL for uploading a file part with the
         specified number.
         Please note: the part number must be a non-zero, positive integer and parts
@@ -476,7 +476,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
                 + " smaller or equal to 10000"
             )
 
-        self._assert_mulitpart_upload_exist(
+        self._assert_multipart_upload_exist(
             upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
         )
 
@@ -506,7 +506,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError()
 
-        self._assert_mulitpart_upload_exist(
+        self._assert_multipart_upload_exist(
             upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
         )
 
@@ -605,7 +605,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
                 )
 
     # pylint: disable=too-many-arguments
-    def complete_mulitpart_upload(
+    def complete_multipart_upload(
         self,
         upload_id: str,
         bucket_id: str,
