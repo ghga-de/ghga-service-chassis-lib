@@ -185,13 +185,13 @@ def test_using_non_existing_upload(
     bucket_id = real_bucket_id if bucket_id_correct else "wrong-bucket"
     object_id = real_object_id if object_id_correct else "wrong-object"
     calls = [
-        lambda: s3_fixture.storage._assert_mulitpart_upload_exist(
+        lambda: s3_fixture.storage._assert_multipart_upload_exist(
             upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
         ),
         lambda: s3_fixture.storage.get_part_upload_url(
             upload_id=upload_id, bucket_id=bucket_id, object_id=object_id, part_number=1
         ),
-        lambda: s3_fixture.storage.complete_mulitpart_upload(
+        lambda: s3_fixture.storage.complete_multipart_upload(
             upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
         ),
     ]
@@ -284,7 +284,7 @@ def test_complete_multipart_upload(
         )
 
     with (pytest.raises(exception) if exception else nullcontext()):  # type: ignore
-        s3_fixture.storage.complete_mulitpart_upload(
+        s3_fixture.storage.complete_multipart_upload(
             upload_id=upload_id,
             bucket_id=bucket_id,
             object_id=object_id,
