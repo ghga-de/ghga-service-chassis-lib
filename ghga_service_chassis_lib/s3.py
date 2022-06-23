@@ -32,6 +32,7 @@ from .object_storage_dao import (
     BucketAlreadyExists,
     BucketError,
     BucketNotFoundError,
+    MultiPartUploadAbortError,
     MultiPartUploadConfirmError,
     MultiPartUploadNotFoundError,
     ObjectAlreadyExistsError,
@@ -417,7 +418,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             raise OutOfContextError()
 
         try:
-            upload_list = self._client.list_multipart_uploads(
+            uploads_info = self._client.list_multipart_uploads(
                 Bucket=bucket_id,
             )
         except botocore.exceptions.ClientError as error:
@@ -425,16 +426,17 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
                 error, bucket_id=bucket_id, object_id=object_id
             ) from error
 
-        for upload in upload_list["Uploads"]:
-            if upload["UploadId"] == upload_id:
-                if upload["Key"] == object_id:
-                    return
-                raise MultiPartUploadNotFoundError(
-                    upload_id=upload_id,
-                    bucket_id=bucket_id,
-                    object_id=object_id,
-                    details="Object ID missmatch",
-                )
+        if "Uploads" in uploads_info:
+            for upload in uploads_info["Uploads"]:
+                if upload["UploadId"] == upload_id:
+                    if upload["Key"] == object_id:
+                        return
+                    raise MultiPartUploadNotFoundError(
+                        upload_id=upload_id,
+                        bucket_id=bucket_id,
+                        object_id=object_id,
+                        details="Object ID missmatch",
+                    )
 
         raise MultiPartUploadNotFoundError(
             upload_id=upload_id,
@@ -511,7 +513,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         )
 
         try:
-            parts_info = self._client.list_parts(
+            return self._client.list_parts(
                 Bucket=bucket_id,
                 Key=object_id,
                 UploadId=upload_id,
@@ -520,7 +522,6 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             raise _translate_s3_client_errors(
                 error, bucket_id=bucket_id, object_id=object_id
             ) from error
-        return parts_info
 
     # pylint: disable=too-many-arguments
     def _check_uploaded_parts(
@@ -603,6 +604,56 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
                     + f" {part['Size']} bytes which is different than the size of the"
                     + f" first part {first_part_size}.",
                 )
+
+    # pylint: disable=too-many-arguments
+    def abort_multipart_upload(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+    ) -> None:
+        """Abort a multipart upload with the specified ID. All uploaded content is
+        deleted.
+        """
+
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        self._assert_multipart_upload_exist(
+            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+        )
+
+        try:
+            self._client.abort_multipart_upload(
+                Bucket=bucket_id,
+                Key=object_id,
+                UploadId=upload_id,
+            )
+        except botocore.exceptions.ClientError as error:
+            raise _translate_s3_client_errors(
+                error, bucket_id=bucket_id, object_id=object_id
+            ) from error
+
+        # verify that the abortion was successful as recommended by the boto3
+        # documentation:
+        # (Please see here for more details:
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html?highlight=abort_multipart_upload#S3.Client.abort_multipart_upload
+        # )
+        try:
+            parts_info = self._get_parts_info(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+            )
+        except MultiPartUploadNotFoundError:
+            # this is proof enough that the upload was aborted:
+            return
+
+        # verify that no parts are remaining:
+        if "Parts" in parts_info and len(parts_info["Parts"]) > 0:
+            raise MultiPartUploadAbortError(
+                upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+            )
 
     # pylint: disable=too-many-arguments
     def complete_multipart_upload(

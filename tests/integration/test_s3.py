@@ -23,6 +23,7 @@ import pytest
 from black import nullcontext
 
 from ghga_service_chassis_lib.object_storage_dao import (
+    DEFAULT_PART_SIZE,
     BucketAlreadyExists,
     BucketNotFoundError,
     MultiPartUploadConfirmError,
@@ -291,3 +292,43 @@ def test_complete_multipart_upload(
             anticipated_part_quantity=anticipated_part_quantity,
             anticipated_part_size=anticipated_part_size,
         )
+
+
+@pytest.mark.parametrize("empty_upload", (True, False))
+def test_abort_multipart_upload(
+    empty_upload: bool,
+    s3_fixture: S3Fixture,  # noqa: F811
+):
+    """
+    Test the abort_multipart_upload method.
+    """
+
+    upload_id, bucket_id, object_id = get_initialized_upload(s3_fixture)
+
+    upload_part = lambda part_number: upload_part_of_size(
+        storage_dao=s3_fixture.storage,
+        upload_id=upload_id,
+        bucket_id=bucket_id,
+        object_id=object_id,
+        size=DEFAULT_PART_SIZE,
+        part_number=part_number,
+    )
+
+    if not empty_upload:
+        # upload 2 parts:
+        for part_number in range(1, 3):
+            upload_part(part_number)
+
+    s3_fixture.storage.abort_multipart_upload(
+        upload_id=upload_id,
+        bucket_id=bucket_id,
+        object_id=object_id,
+    )
+
+    # verify that the upload cannot be continued:
+    with pytest.raises(MultiPartUploadNotFoundError):
+        upload_part(part_number=3)
+
+    # ... and also not restarted:
+    with pytest.raises(MultiPartUploadNotFoundError):
+        upload_part(part_number=1)

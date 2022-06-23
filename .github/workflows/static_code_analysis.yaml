@@ -7,19 +7,21 @@ jobs:
     runs-on: ubuntu-latest
     name: Static Code Analysis
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.4.2
       - name: Retrieve main src dir
         id: main_src_dir
         run: |
           echo "::set-output name=MAIN_SRC_DIR::${PWD}/$(./scripts/get_package_name.py)"
       - name: Set up Python 3.9
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3.1.2
         with:
           python-version: 3.9
       - name: Install Dependencies
         run: |
           pip install ".[all]"
-      - uses: pre-commit/action@v2.0.3
+      - uses: pre-commit/action@v3.0.0
+        env:
+          SKIP: no-commit-to-branch
       - name: black
         run: |
           black --check .
