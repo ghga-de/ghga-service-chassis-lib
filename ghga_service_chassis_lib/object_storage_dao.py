@@ -135,7 +135,7 @@ class MultiPartUploadNotFoundError(MultiPartUploadError):
         details: Optional[str] = None,
     ):
         message = (
-            f"The upload with ID '{upload_id}' for object '{object_id}'"
+            f"The multi-part upload with ID '{upload_id}' for object '{object_id}'"
             + f" in bucket '{bucket_id} could not be found"
             + (f": {details}." if details else ".")
         )
@@ -153,9 +153,26 @@ class MultiPartUploadConfirmError(MultiPartUploadError):
         reason: Optional[str] = None,
     ):
         message = (
-            f"The confirmation of upload '{upload_id}' for object '{object_id}'"
-            + f" in bucket '{bucket_id} was rejected"
+            f"The confirmation of multi-part upload '{upload_id}' for object"
+            + f" '{object_id}' in bucket '{bucket_id} was rejected"
             + (f": {reason}." if reason else ".")
+        )
+        super().__init__(message)
+
+
+class MultiPartUploadAbortError(MultiPartUploadError):
+    """Thrown when failed to abort a multi-part upload."""
+
+    def __init__(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+    ):
+        message = (
+            f"Failed to abort the multi-part upload '{upload_id}' for object"
+            + f" '{object_id}' in bucket '{bucket_id}'. An ongoing part upload might"
+            + " be a reason. Please complete all part upload and try to abort again."
         )
         super().__init__(message)
 
@@ -309,6 +326,17 @@ class ObjectStorageDao(DaoGenericBase):
         specified number.
         Please note: the part number must be a non-zero, positive integer and parts
         should be uploaded in sequence.
+        """
+        raise NotImplementedError()
+
+    def abort_multipart_upload(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+    ) -> None:
+        """Cancel a multipart upload with the specified ID. All uploaded content is
+        deleted.
         """
         raise NotImplementedError()
 
