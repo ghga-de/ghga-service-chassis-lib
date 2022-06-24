@@ -33,8 +33,10 @@ from .object_storage_dao import (
     BucketError,
     BucketNotFoundError,
     MultiPartUploadAbortError,
+    MultiPartUploadAlreadyExistsError,
     MultiPartUploadConfirmError,
     MultiPartUploadNotFoundError,
+    MultipleActiveUploadsError,
     ObjectAlreadyExistsError,
     ObjectError,
     ObjectNotFoundError,
@@ -128,6 +130,7 @@ def _format_s3_error_code(error_code: str):
 
 def _translate_s3_client_errors(
     source_exception: botocore.exceptions.ClientError,
+    upload_id: Optional[str] = None,
     bucket_id: Optional[str] = None,
     object_id: Optional[str] = None,
 ) -> Exception:
@@ -145,11 +148,17 @@ def _translate_s3_client_errors(
     elif error_code == "BucketAlreadyExists":
         exception = BucketAlreadyExists(bucket_id=bucket_id)
     elif error_code == "NoSuchKey":
-        exception = ObjectNotFoundError(object_id=object_id)
+        exception = ObjectNotFoundError(bucket_id=bucket_id, object_id=object_id)
     elif error_code == "ObjectAlreadyInActiveTierError":
-        exception = ObjectAlreadyExistsError(object_id=object_id)
+        exception = ObjectAlreadyExistsError(bucket_id=bucket_id, object_id=object_id)
     elif error_code == "ObjectAlreadyInActiveTierError":
-        exception = ObjectAlreadyExistsError(object_id=object_id)
+        exception = ObjectAlreadyExistsError(bucket_id=bucket_id, object_id=object_id)
+    elif error_code == "NoSuchUpload":
+        if upload_id is None or bucket_id is None or object_id is None:
+            raise ValueError()
+        exception = MultiPartUploadNotFoundError(
+            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+        )
     else:
         # exact match not found, match by keyword:
         if "Bucket" in error_code:
@@ -212,7 +221,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
     def __repr__(self) -> str:
         return f"ObjectStorageS3(config=S3ConfigBase(s3_endpoint_url={self.endpoint_url}, ...))"
 
-    def __enter__(self) -> ObjectStorageDao:
+    def __enter__(self) -> "ObjectStorageS3":
         """Setup storage connection/session."""
 
         self._client = boto3.client(
@@ -408,12 +417,15 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             url=presigned_url["url"], fields=presigned_url["fields"]
         )
 
-    def _assert_multipart_upload_exist(
-        self, upload_id: str, bucket_id: str, object_id: str
-    ) -> None:
-        """Checks if a multipart upload with the given ID exists and whether it maps
-        to the specified object and bucket. Otherwise, raises UploadNotExistError.
+    def _list_mulitpart_upload_for_object(
+        self, bucket_id: str, object_id: str
+    ) -> list[str]:
+        """Lists all active multi-part upload for the given object. Returns a list of
+        their IDs.
+
+        (S3 allows multiple ongoing multi-part uploads.)
         """
+
         if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError()
 
@@ -427,27 +439,65 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             ) from error
 
         if "Uploads" in uploads_info:
-            for upload in uploads_info["Uploads"]:
-                if upload["UploadId"] == upload_id:
-                    if upload["Key"] == object_id:
-                        return
-                    raise MultiPartUploadNotFoundError(
-                        upload_id=upload_id,
-                        bucket_id=bucket_id,
-                        object_id=object_id,
-                        details="Object ID missmatch",
-                    )
+            upload_list = uploads_info["Uploads"]
+            return [
+                upload["UploadId"]
+                for upload in upload_list
+                if upload["Key"] == object_id
+            ]
 
-        raise MultiPartUploadNotFoundError(
-            upload_id=upload_id,
-            bucket_id=bucket_id,
-            object_id=object_id,
+        return []
+
+    def _assert_no_multipart_upload(self, bucket_id: str, object_id: str):
+        """Ensure that there are no active multi-part uploads for the given object."""
+
+        upload_ids = self._list_mulitpart_upload_for_object(
+            bucket_id=bucket_id, object_id=object_id
         )
+        if len(upload_ids) > 0:
+            raise MultiPartUploadAlreadyExistsError(
+                bucket_id=bucket_id, object_id=object_id
+            )
+
+    def _assert_multipart_upload_exist(
+        self,
+        upload_id: str,
+        bucket_id: str,
+        object_id: str,
+        assert_exclusiveness: bool = True,
+    ) -> None:
+        """Checks if a multipart upload with the given ID exists and whether it maps
+        to the specified object and bucket. Otherwise, raises UploadNotExistError.
+
+        By default, it is also verified that this upload is the only upload active for
+        that file. Otherwise, raises
+        """
+        if not isinstance(self._client, botocore.client.BaseClient):
+            raise OutOfContextError()
+
+        upload_ids = self._list_mulitpart_upload_for_object(
+            bucket_id=bucket_id, object_id=object_id
+        )
+        n_uploads = len(upload_ids)
+
+        if assert_exclusiveness and n_uploads > 1:
+            raise MultipleActiveUploadsError(
+                bucket_id=bucket_id, object_id=object_id, upload_ids=upload_ids
+            )
+
+        if upload_id not in upload_ids:
+            raise MultiPartUploadNotFoundError(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+            )
 
     def init_multipart_upload(self, bucket_id: str, object_id: str) -> str:
         """Initiates a mulipart upload procedure. Returns the upload ID."""
         if not isinstance(self._client, botocore.client.BaseClient):
             raise OutOfContextError()
+
+        self._assert_no_multipart_upload(bucket_id=bucket_id, object_id=object_id)
 
         try:
             response = self._client.create_multipart_upload(
@@ -494,7 +544,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             )
         except botocore.exceptions.ClientError as error:
             raise _translate_s3_client_errors(
-                error, bucket_id=bucket_id, object_id=object_id
+                error, upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
             ) from error
 
     def _get_parts_info(
@@ -520,7 +570,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             )
         except botocore.exceptions.ClientError as error:
             raise _translate_s3_client_errors(
-                error, bucket_id=bucket_id, object_id=object_id
+                error, upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
             ) from error
 
     # pylint: disable=too-many-arguments
@@ -620,8 +670,13 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             raise OutOfContextError()
 
         self._assert_multipart_upload_exist(
-            upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+            upload_id=upload_id,
+            bucket_id=bucket_id,
+            object_id=object_id,
+            assert_exclusiveness=False,
         )
+        # Exclusiveness is not enforced here since the abortion of an upload might be
+        # used to resolve the invalid state of multiple uploads for the same object.
 
         try:
             self._client.abort_multipart_upload(
@@ -631,7 +686,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             )
         except botocore.exceptions.ClientError as error:
             raise _translate_s3_client_errors(
-                error, bucket_id=bucket_id, object_id=object_id
+                error, upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
             ) from error
 
         # verify that the abortion was successful as recommended by the boto3
@@ -705,7 +760,7 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
             )
         except botocore.exceptions.ClientError as error:
             raise _translate_s3_client_errors(
-                error, bucket_id=bucket_id, object_id=object_id
+                error, upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
             ) from error
 
     def get_object_download_url(

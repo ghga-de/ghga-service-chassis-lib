@@ -59,7 +59,7 @@ class S3Fixture:
     """Info yielded by the `s3_fixture` function"""
 
     config: S3ConfigBase
-    storage: ObjectStorageDao
+    storage: ObjectStorageS3
     existing_buckets: List[str]
     non_existing_buckets: List[str]
     existing_objects: List[ObjectFixture]
