@@ -124,6 +124,30 @@ class MultiPartUploadError(ObjectError):
     """Thrown when a confirmation of an upload is rejected."""
 
 
+class MultiPartUploadAlreadyExistsError(MultiPartUploadError):
+    """Thrown when trying to create a multi-part upload for an object for which another
+    upload is already active."""
+
+    def __init__(self, bucket_id: str, object_id: str):
+        message = (
+            f"Failed to initiate a multi-part upload for object '{object_id}' in bucket"
+            + f" '{bucket_id}. Another upload is already ongoing for that file."
+        )
+        super().__init__(message)
+
+
+class MultipleActiveUploadsError(MultiPartUploadError):
+    """Thrown when multiple active multi-part uploads are detected for the same object."""
+
+    def __init__(self, bucket_id: str, object_id: str, upload_ids: list[str]):
+        message = (
+            f"Multiple active multi-part uploads were detected for object '{object_id}'"
+            + f" in bucket '{bucket_id}. Another upload is already ongoing for that"
+            + f" file. The IDs of the active uploads are: {','.join(upload_ids)}"
+        )
+        super().__init__(message)
+
+
 class MultiPartUploadNotFoundError(MultiPartUploadError):
     """Thrown when a upload with the specified upload, bucket, and object id was not found."""
 
@@ -262,7 +286,7 @@ class ObjectStorageDao(DaoGenericBase):
     # by implementing `__enter__` and `__exit__`
     # methods:
 
-    def __enter__(self):
+    def __enter__(self) -> "ObjectStorageDao":
         """Setup storage connection/session."""
         ...
         return self

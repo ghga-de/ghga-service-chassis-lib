@@ -26,14 +26,17 @@ from ghga_service_chassis_lib.object_storage_dao import (
     DEFAULT_PART_SIZE,
     BucketAlreadyExists,
     BucketNotFoundError,
+    MultiPartUploadAlreadyExistsError,
     MultiPartUploadConfirmError,
     MultiPartUploadNotFoundError,
+    MultipleActiveUploadsError,
     ObjectAlreadyExistsError,
     ObjectNotFoundError,
 )
 from ghga_service_chassis_lib.object_storage_dao_testing import (
     MEBIBYTE,
     ObjectFixture,
+    upload_part,
     upload_part_of_size,
 )
 from ghga_service_chassis_lib.s3_testing import (
@@ -332,3 +335,112 @@ def test_abort_multipart_upload(
     # ... and also not restarted:
     with pytest.raises(MultiPartUploadNotFoundError):
         upload_part(part_number=1)
+
+
+def test_multiple_active_uploads(s3_fixture: S3Fixture):  # noqa: F811
+    """
+    Test that multiple active uploads for the same object are not possible.
+    """
+
+    # initialize an upload:
+    _, bucket_id, object_id = get_initialized_upload(s3_fixture)
+
+    # initialize another upload for the same object:
+    with pytest.raises(MultiPartUploadAlreadyExistsError):
+        _ = s3_fixture.storage.init_multipart_upload(
+            bucket_id=bucket_id, object_id=object_id
+        )
+
+
+def test_handling_multiple_coexisting_uploads(s3_fixture: S3Fixture):  # noqa: F811
+    """
+    Test that the invalid state of multiple uploads coexisting for the same object
+    is correctly handeled.
+    """
+
+    # initialize an upload:
+    upload1_id, bucket_id, object_id = get_initialized_upload(s3_fixture)
+
+    # initialize another upload bypassing any checks:
+    upload2_id = s3_fixture.storage._client.create_multipart_upload(  # type: ignore
+        Bucket=bucket_id, Key=object_id
+    )["UploadId"]
+
+    # try to work on both uploads:
+    for upload_id in [upload1_id, upload2_id]:
+        with pytest.raises(MultipleActiveUploadsError):
+            s3_fixture.storage.get_part_upload_url(
+                upload_id=upload_id,
+                bucket_id=bucket_id,
+                object_id=object_id,
+                part_number=1,
+            )
+
+        with pytest.raises(MultipleActiveUploadsError):
+            s3_fixture.storage.complete_multipart_upload(
+                upload_id=upload_id, bucket_id=bucket_id, object_id=object_id
+            )
+
+    # aborting should work:
+    s3_fixture.storage.abort_multipart_upload(
+        upload_id=upload2_id, bucket_id=bucket_id, object_id=object_id
+    )
+
+    # confirm that aborting one upload fixes the problem
+    upload_part(
+        s3_fixture.storage,
+        upload_id=upload1_id,
+        bucket_id=bucket_id,
+        object_id=object_id,
+        content=b"Test content.",
+        part_number=1,
+    )
+    s3_fixture.storage.complete_multipart_upload(
+        upload_id=upload1_id, bucket_id=bucket_id, object_id=object_id
+    )
+
+
+@pytest.mark.parametrize("abort_first", (True, False))
+def test_handling_multiple_subsequent_uploads(
+    abort_first: bool, s3_fixture: S3Fixture  # noqa: F811
+):
+    """
+    Ensure that multiple subsequent uploads that target the same object are handled
+    correctly. Three cases shall be distinguished:
+        1. initiate an upload, upload some parts, abort it, then start another
+          upload, uploads some parts, complete it (`abort_first` set to True)
+        2. initiate an upload, upload some parts, complete it, then start another
+          upload, uploads some parts, complete it (`abort_first` set to False)
+    """
+
+    # perform first upload:
+    upload1_id, bucket_id, object_id = get_initialized_upload(s3_fixture)
+
+    upload_part_shortcut = lambda upload_id: upload_part(
+        s3_fixture.storage,
+        upload_id=upload_id,
+        bucket_id=bucket_id,
+        object_id=object_id,
+        content=b"Test content.",
+        part_number=1,
+    )
+
+    upload_part_shortcut(upload1_id)
+    if abort_first:
+        s3_fixture.storage.abort_multipart_upload(
+            upload_id=upload1_id, bucket_id=bucket_id, object_id=object_id
+        )
+    else:
+        s3_fixture.storage.complete_multipart_upload(
+            upload_id=upload1_id, bucket_id=bucket_id, object_id=object_id
+        )
+
+    # perform second upload:
+    upload2_id = s3_fixture.storage.init_multipart_upload(
+        bucket_id=bucket_id, object_id=object_id
+    )
+
+    upload_part_shortcut(upload2_id)
+    s3_fixture.storage.complete_multipart_upload(
+        upload_id=upload2_id, bucket_id=bucket_id, object_id=object_id
+    )
