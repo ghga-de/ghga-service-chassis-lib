@@ -21,6 +21,7 @@ from typing import Dict, Literal, Optional, Sequence, Union
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from httpyexpect.server.handlers.fastapi_ import configure_exception_handler
 from pydantic import BaseSettings, Field
 
 # type alias for log level parameter
@@ -130,6 +131,9 @@ def configure_app(app: FastAPI, config: ApiConfigBase):
         kwargs["allow_credentials"] = config.cors_allow_credentials
 
     app.add_middleware(CORSMiddleware, **kwargs)
+
+    # Configure the exception handler to issue error according to httpyexpect model:
+    configure_exception_handler(app)
 
 
 def run_server(app: Union[str, FastAPI], config: ApiConfigBase):
