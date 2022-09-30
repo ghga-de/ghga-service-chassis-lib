@@ -39,11 +39,10 @@ async def test_get_collection():
 
 @pytest.mark.asyncio
 async def test_close_db():
-
     """
     Test, if close_db actually closes the connection
     """
 
     with MongoDbContainer("mongo:latest") as mongo:
         db_connect = DBConnect(mongo.get_connection_url(), mongo.MONGO_DB)
-        assert await db_connect.close_db() is None
+        await db_connect.close_db()
