@@ -15,9 +15,11 @@
 
 """Test api module"""
 
+import asyncio
 import multiprocessing
 import time
 
+import pytest
 import requests
 
 from ghga_service_chassis_lib.api import ApiConfigBase, run_server
@@ -26,13 +28,14 @@ from .fixtures.hello_world_test_app import GREETING, app
 from .fixtures.utils import find_free_port
 
 
-def test_run_server():
+@pytest.mark.asyncio
+async def test_run_server():
     """Test the run_server wrapper function"""
     config = ApiConfigBase()
     config.port = find_free_port()
 
     process = multiprocessing.Process(
-        target=run_server, kwargs={"app": app, "config": config}
+        target=lambda: asyncio.run(run_server(app=app, config=config))
     )
     process.start()
 
