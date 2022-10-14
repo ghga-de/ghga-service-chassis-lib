@@ -15,6 +15,8 @@
 
 """Entrypoint of the package"""
 
+import asyncio
+
 from ghga_service_chassis_lib.api import run_server
 
 from .api import app  # noqa: F401 pylint: disable=unused-import
@@ -23,7 +25,9 @@ from .config import get_config
 
 def run():
     """Run the service"""
-    run_server(app="hello_world_web_server.__main__:app", config=get_config())
+    asyncio.run(
+        run_server(app="hello_world_web_server.__main__:app", config=get_config())
+    )
 
 
 if __name__ == "__main__":

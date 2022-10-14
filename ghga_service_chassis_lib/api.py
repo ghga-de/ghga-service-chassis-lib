@@ -136,27 +136,30 @@ def configure_app(app: FastAPI, config: ApiConfigBase):
     configure_exception_handler(app)
 
 
-def run_server(app: Union[str, FastAPI], config: ApiConfigBase):
-    """Starts backend server.
+async def run_server(app: Union[FastAPI, str], config: ApiConfigBase):
+    """Starts backend server. In contrast to the behavior of `uvicorn.run`, it does not
+    create a new asyncio event loop but uses the outer one.
 
     Args:
-        app_import_path (str, Type[FastAPI]):
+        app_import_path:
             Either a FastAPI app object (auto reload and multiple
             workers won't work) or the import path to the app object.
             The path follows the same style that is also used for
             the console_scripts in a setup.py/setup.cfg
             (see here for an example:
             from ghga_service_chassis_lib.api import run_server).
-        config (BaseSettings):
+        config:
             A pydantic BaseSettings class that contains attributes
             "host", "port", and "log_level".
     """
 
-    uvicorn.run(
-        app,
+    uv_config = uvicorn.Config(
+        app=app,
         host=config.host,
         port=config.port,
         log_level=config.log_level,
         reload=config.auto_reload,
         workers=config.workers,
     )
+    server = uvicorn.Server(uv_config)
+    await server.serve()
