@@ -40,7 +40,7 @@ TiB = 1024**4
 )
 def test_adapt_part_size(part_size: int, file_size: int, expected_part_size: int):
     """Test code to dynamically adapt part size"""
-    with pytest.raises(ValueError) if file_size > 5 * TiB else nullcontext():
+    with pytest.raises(ValueError) if file_size > 5 * TiB else nullcontext():  # type: ignore
         adapted_part_size = adapt_part_size(
             current_part_size=part_size, file_size=file_size
         )
