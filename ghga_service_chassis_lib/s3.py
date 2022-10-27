@@ -180,11 +180,20 @@ def adapt_part_size(current_part_size: int, file_size: int) -> int:
     Args:
         current_part_size (int): currently chosen part size in bytes to be checked
         file_size (int): total file size in bytes
-    """
 
+    Raises:
+        ValueError if file size exceeds the maximum of 5 TiB
+    """
     lower_bound = 5 * 1024**2
     upper_bound = 5 * 1024**3
+    hard_upper_limit = 5 * 1024**4
     max_num_parts = 10_000
+
+    if file_size > hard_upper_limit:
+        raise ValueError(
+            f"""Provided file size of {file_size/1024**4:2.f}TiB
+            exceeds maximum allowed file size of 5 TiB"""
+        )
 
     # clamp to lower/upper bound, respectively
     if current_part_size < lower_bound:
@@ -193,16 +202,12 @@ def adapt_part_size(current_part_size: int, file_size: int) -> int:
         current_part_size = upper_bound
 
     # powers of two from 8 MiB to 4 GiB
-    part_size_candidates = [2**i * 1024**2 for i in range(3, 13)]
+    part_size_candidates = [2**i * 1024**2 for i in range(3, 11)]
 
     if file_size / current_part_size > max_num_parts:
         for part_size_candidate in part_size_candidates:
             if file_size / part_size_candidate <= 10_000:
                 return part_size_candidate
-        raise ValueError(
-            """Why are you trying to upload a >39 TiB file?
-            Please reevaluate your lifes choices and contact the local GHGA Admins."""
-        )
     return current_part_size
 
 
