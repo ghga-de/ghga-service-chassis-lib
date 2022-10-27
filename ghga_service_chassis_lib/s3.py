@@ -172,6 +172,40 @@ def _translate_s3_client_errors(
     return exception
 
 
+def adapt_part_size(current_part_size: int, file_size: int) -> int:
+    """
+    Checks if the provided part size is within bounds and produces <= 10_000 parts.
+
+
+    Args:
+        current_part_size (int): currently chosen part size in bytes to be checked
+        file_size (int): total file size in bytes
+    """
+
+    lower_bound = 5 * 1024**2
+    upper_bound = 5 * 1024**3
+    max_num_parts = 10_000
+
+    # clamp to lower/upper bound, respectively
+    if current_part_size < lower_bound:
+        current_part_size = lower_bound
+    elif current_part_size > upper_bound:
+        current_part_size = upper_bound
+
+    # powers of two from 8 MiB to 4 GiB
+    part_size_candidates = [2**i * 1024**2 for i in range(3, 13)]
+
+    if file_size / current_part_size > max_num_parts:
+        for part_size_candidate in part_size_candidates:
+            if file_size / part_size_candidate <= 10_000:
+                return part_size_candidate
+        raise ValueError(
+            """Why are you trying to upload a >39 TiB file?
+            Please reevaluate your lifes choices and contact the local GHGA Admins."""
+        )
+    return current_part_size
+
+
 class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-attributes
     """
     An implementation of the ObjectStorageDao interface for interacting specifically
