@@ -201,7 +201,8 @@ def adapt_part_size(current_part_size: int, file_size: int) -> int:
     elif current_part_size > upper_bound:
         current_part_size = upper_bound
 
-    # powers of two from 8 MiB to 4 GiB
+    # powers of two from 8 MiB to 1024 MiBs, everything above would produce files
+    # over the limit
     part_size_candidates = [2**i * 1024**2 for i in range(3, 11)]
 
     if file_size / current_part_size > max_num_parts:
