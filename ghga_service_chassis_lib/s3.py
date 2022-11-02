@@ -48,6 +48,11 @@ from .object_storage_dao import (
 )
 from .utils import OutOfContextError
 
+LOWER_BOUND = 8 * 1024**2
+UPPER_BOUND = 4 * 1024**3
+FILE_SIZE_LIMIT = 5 * 1024**4
+MAX_NUM_PARTS = 10_000
+
 
 class S3ConfigBase(BaseSettings):
     """A base class with S3-specific config params.
@@ -172,44 +177,48 @@ def _translate_s3_client_errors(
     return exception
 
 
-def adapt_part_size(current_part_size: int, file_size: int) -> int:
+def calc_part_size(*, file_size: int, preferred_part_size: Optional[int] = None) -> int:
     """
-    Checks if the provided part size is within bounds and produces <= 10_000 parts.
-
-
+    Gives recommendations on the part_size to use for up- or download of a file given
+    it's total size. It makes sure that chosen part size is within bounds and produces
+    <= 10_000 parts.
     Args:
-        current_part_size (int): currently chosen part size in bytes to be checked
         file_size (int): total file size in bytes
+        preferred_part_size (int):
+            You may provide your preferred part size in bytes. If it satisfies the technical
+            constraints, it will be returned unchanged. Otherwise, it is ignored and a
+            technically viable part size is chosen instead.
+
+    Returns: a recommendation for the part size in bytes.
 
     Raises:
         ValueError if file size exceeds the maximum of 5 TiB
     """
-    lower_bound = 5 * 1024**2
-    upper_bound = 5 * 1024**3
-    hard_upper_limit = 5 * 1024**4
-    max_num_parts = 10_000
 
-    if file_size > hard_upper_limit:
+    if preferred_part_size is None:
+        preferred_part_size = 8 * 1024**2
+
+    if file_size > FILE_SIZE_LIMIT:
         raise ValueError(
             f"""Provided file size of {file_size/1024**4:2.f}TiB
             exceeds maximum allowed file size of 5 TiB"""
         )
 
     # clamp to lower/upper bound, respectively
-    if current_part_size < lower_bound:
-        current_part_size = lower_bound
-    elif current_part_size > upper_bound:
-        current_part_size = upper_bound
+    if preferred_part_size < LOWER_BOUND:
+        preferred_part_size = LOWER_BOUND
+    elif preferred_part_size > UPPER_BOUND:
+        preferred_part_size = UPPER_BOUND
 
     # powers of two from 8 MiB to 1024 MiBs, everything above would produce files
     # over the limit
     part_size_candidates = [2**i * 1024**2 for i in range(3, 11)]
 
-    if file_size / current_part_size > max_num_parts:
+    if file_size / preferred_part_size > MAX_NUM_PARTS:
         for part_size_candidate in part_size_candidates:
-            if file_size / part_size_candidate <= 10_000:
+            if file_size / part_size_candidate <= MAX_NUM_PARTS:
                 return part_size_candidate
-    return current_part_size
+    return preferred_part_size
 
 
 class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-attributes
