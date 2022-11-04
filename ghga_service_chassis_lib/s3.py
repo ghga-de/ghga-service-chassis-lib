@@ -614,7 +614,11 @@ class ObjectStorageS3(ObjectStorageDao):  # pylint: disable=too-many-instance-at
         first_part_size = parts_info["Parts"][0]["Size"]
         last_part_size = parts_info["Parts"][-1]["Size"]
         if anticipated_part_size is not None:
-            if first_part_size != anticipated_part_size:
+            if (
+                anticipated_part_quantity is not None
+                and anticipated_part_quantity > 1
+                and first_part_size != anticipated_part_size
+            ):
                 raise MultiPartUploadConfirmError(
                     upload_id=upload_id,
                     bucket_id=bucket_id,
