@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel
 from pytest import mark, raises
 
-from ghga_service_chassis_lib.utils import DateTimeUTC, now_as_utc
+from ghga_service_chassis_lib.utils import UTC, DateTimeUTC, now_as_utc
 
 
 @mark.parametrize(
@@ -52,9 +52,9 @@ def test_does_not_accept_naive_datetimes(value):
     [
         "2022-11-15T12:00:00+00:00",
         "2022-11-15T12:00:00Z",
-        datetime(2022, 11, 15, 12, 0, 0, tzinfo=timezone.utc),
+        datetime(2022, 11, 15, 12, 0, 0, tzinfo=UTC),
         datetime.now(timezone.utc),
-        datetime.fromtimestamp(0, timezone.utc),
+        datetime.fromtimestamp(0, UTC),
     ],
 )
 def test_accept_aware_datetimes_in_utc(value):
@@ -92,16 +92,31 @@ def test_converts_datetimes_to_utc(value):
     model = Model(dt=value, du=value)
 
     assert model.dt.tzinfo is not None
-    assert model.dt.tzinfo is not timezone.utc
+    assert model.dt.tzinfo is not UTC
     assert model.dt.utcoffset() != timedelta(0)
-    assert model.du.tzinfo is timezone.utc
+    assert model.du.tzinfo is UTC
     assert model.du.utcoffset() == timedelta(0)
 
     assert model.dt == model.du
 
 
+def test_datetime_utc_constructor():
+    """Test the constructor for DateTimeUTC values."""
+
+    date = DateTimeUTC.construct(2022, 11, 15, 12, 0, 0)
+    assert isinstance(date, DateTimeUTC)
+    assert date.tzinfo is UTC
+    assert date.utcoffset() == timedelta(0)
+
+    date = DateTimeUTC.construct(2022, 11, 15, 12, 0, 0, tzinfo=UTC)
+    assert isinstance(date, DateTimeUTC)
+    assert date.tzinfo is UTC
+    assert date.utcoffset() == timedelta(0)
+
+
 def test_now_as_utc():
     """Test the now_as_utc function."""
-    assert isinstance(now_as_utc(), datetime)
-    assert now_as_utc().tzinfo is timezone.utc
+    assert isinstance(now_as_utc(), DateTimeUTC)
+    assert now_as_utc().tzinfo is UTC
+    assert now_as_utc().utcoffset() == timedelta(0)
     assert abs(now_as_utc().timestamp() - datetime.now().timestamp()) < 5

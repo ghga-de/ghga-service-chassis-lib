@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import os
 import signal
+from abc import ABC
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Callable, Generator, Optional, TypeVar, cast
+from typing import Any, BinaryIO, Callable, Generator, Optional, TypeVar, cast
 
 from pydantic import BaseSettings, parse_obj_as
 
@@ -143,8 +144,14 @@ def create_fake_drs_uri(object_id: str) -> str:
     return f"drs://www.example.org/{object_id}"
 
 
+class NamedBinaryIO(ABC, BinaryIO):
+    """Return type of NamedTemporaryFile."""
+
+    name: str
+
+
 @contextmanager
-def big_temp_file(size: int) -> Generator[IO, None, None]:
+def big_temp_file(size: int) -> Generator[NamedBinaryIO, None, None]:
     """Generates a big file with approximately the specified size in bytes."""
     current_size = 0
     current_number = 0
@@ -158,7 +165,7 @@ def big_temp_file(size: int) -> Generator[IO, None, None]:
             current_number = next_number
             next_number = previous_number + current_number
         temp_file.flush()
-        yield temp_file
+        yield cast(NamedBinaryIO, temp_file)
 
 
 class DateTimeUTC(datetime):
@@ -176,12 +183,12 @@ class DateTimeUTC(datetime):
         return cls(*args, **kwargs)
 
     @classmethod
-    def __get_validators__(cls) -> Generator[Callable[[Any], DateTimeUTC], None, None]:
+    def __get_validators__(cls) -> Generator[Callable[[Any], datetime], None, None]:
         """Get all validators."""
         yield cls.validate
 
     @classmethod
-    def validate(cls, value: Any) -> DateTimeUTC:
+    def validate(cls, value: Any) -> datetime:
         """Validate the given value."""
         date_value = parse_obj_as(datetime, value)
         if date_value.tzinfo is None:
@@ -205,4 +212,4 @@ def now_as_utc() -> DateTimeUTC:
 
     Note: This is different from datetime.utcnow() which has no timezone.
     """
-    return cast(DateTimeUTC, datetime.now(UTC))
+    return DateTimeUTC.now(UTC)
