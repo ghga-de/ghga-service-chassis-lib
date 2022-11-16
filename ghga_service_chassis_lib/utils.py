@@ -15,14 +15,32 @@
 
 """General utilities that don't require heavy dependencies."""
 
+from __future__ import annotations
+
 import os
 import signal
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional
+from typing import IO, Any, Callable, Generator, Optional, TypeVar, cast
 
-from pydantic import BaseSettings
+from pydantic import BaseSettings, parse_obj_as
+
+__all__ = [
+    "AsyncDaoGenericBase",
+    "DaoGenericBase",
+    "DateTimeUTC",
+    "OutOfContextError",
+    "UTC",
+    "big_temp_file",
+    "assert_tz_is_utc",
+    "create_fake_drs_uri",
+    "exec_with_timeout",
+    "now_as_utc",
+]
+
+T = TypeVar("T")
 
 TEST_FILE_DIR = Path(__file__).parent.resolve() / "test_files"
 
@@ -31,6 +49,8 @@ TEST_FILE_PATHS = [
     for filename in os.listdir(TEST_FILE_DIR)
     if filename.startswith("test_") and filename.endswith(".yaml")
 ]
+
+UTC = timezone.utc
 
 
 class OutOfContextError(RuntimeError):
@@ -86,17 +106,17 @@ class AsyncDaoGenericBase:
         ...
 
 
-def raise_timeout_error(_, __):
+def raise_timeout_error(_signalnum, _handler) -> None:
     """Raise a TimeoutError"""
     raise TimeoutError()
 
 
 def exec_with_timeout(
-    func: Callable,
+    func: Callable[..., T],
     timeout_after: int,
     func_args: Optional[list] = None,
     func_kwargs: Optional[dict] = None,
-):
+) -> T:
     """
     Exec a function (`func`) with a specified timeout (`timeout_after` in seconds).
     If the function doesn't finish before the timeout, a TimeoutError is thrown.
@@ -118,13 +138,13 @@ def exec_with_timeout(
     return result
 
 
-def create_fake_drs_uri(object_id: str):
+def create_fake_drs_uri(object_id: str) -> str:
     """Create a fake DRS URI based on an object id."""
     return f"drs://www.example.org/{object_id}"
 
 
 @contextmanager
-def big_temp_file(size: int):
+def big_temp_file(size: int) -> Generator[IO, None, None]:
     """Generates a big file with approximately the specified size in bytes."""
     current_size = 0
     current_number = 0
@@ -139,3 +159,50 @@ def big_temp_file(size: int):
             next_number = previous_number + current_number
         temp_file.flush()
         yield temp_file
+
+
+class DateTimeUTC(datetime):
+    """A pydantic type for values that should have an UTC timezone.
+
+    This behaves exactly like the normal datetime type, but requires that the value
+    has a timezone and converts the timezone to UTC if necessary.
+    """
+
+    @classmethod
+    def construct(cls, *args, **kwargs) -> DateTimeUTC:
+        """Construct a datetime with UTC timezone."""
+        if kwargs.get("tzinfo") is None:
+            kwargs["tzinfo"] = UTC
+        return cls(*args, **kwargs)
+
+    @classmethod
+    def __get_validators__(cls) -> Generator[Callable[[Any], DateTimeUTC], None, None]:
+        """Get all validators."""
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, value: Any) -> DateTimeUTC:
+        """Validate the given value."""
+        date_value = parse_obj_as(datetime, value)
+        if date_value.tzinfo is None:
+            raise ValueError(f"Date-time value is missing a timezone: {value!r}")
+        if date_value.tzinfo is not UTC:
+            date_value = date_value.astimezone(UTC)
+        return date_value
+
+
+def assert_tz_is_utc() -> None:
+    """Verifies that the default timezone is set to UTC.
+
+    Raises a Runtimeerror if the default timezone is set differently.
+    """
+    if datetime.now().astimezone().tzinfo != UTC:
+        raise RuntimeError("System must be configured to use UTC.")
+
+
+def now_as_utc() -> DateTimeUTC:
+    """Return the current datetime with UTC timezone.
+
+    Note: This is different from datetime.utcnow() which has no timezone.
+    """
+    return cast(DateTimeUTC, datetime.now(UTC))
