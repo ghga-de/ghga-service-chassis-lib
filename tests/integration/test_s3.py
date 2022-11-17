@@ -61,11 +61,11 @@ def test_typical_workflow(
         big_temp_file(size=20 * MEBIBYTE) if use_multipart_upload else nullcontext()
     ) as temp_file:
         object_fixture = (
-            ObjectFixture(
+            s3_fixture.non_existing_objects[0]
+            if temp_file is None
+            else ObjectFixture(
                 file_path=temp_file.name, bucket_id="", object_id="some-big-file"
             )
-            if use_multipart_upload
-            else s3_fixture.non_existing_objects[0]
         )
 
         typical_workflow(
