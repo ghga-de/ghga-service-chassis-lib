@@ -26,6 +26,8 @@ scripts/README.md
 .pylintrc
 .mypy.ini
 
+pytest.ini
+
 LICENSE
 requirements.txt
 setup.py
