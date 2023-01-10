@@ -26,9 +26,9 @@ from sqlalchemy.orm.decl_api import DeclarativeMeta
 Base: DeclarativeMeta = declarative_base()
 
 
-class TestModel(Base):
+class DummyModel(Base):
     """
-    A test model.
+    A dummy model for testing.
     """
 
     __tablename__ = "testentries"
@@ -37,24 +37,24 @@ class TestModel(Base):
     some_number = Column(Integer, nullable=False)
 
 
-TestFixtureModel = namedtuple("TestFixtureModel", ["some_string", "some_number"])
+DummyFixtureModel = namedtuple("DummyFixtureModel", ["some_string", "some_number"])
 
 
 PREPOPULATED_TEST_DATA = [
-    TestFixtureModel(some_string="foo", some_number=1),
-    TestFixtureModel(some_string="bar", some_number=2),
+    DummyFixtureModel(some_string="foo", some_number=1),
+    DummyFixtureModel(some_string="bar", some_number=2),
 ]
 
 
 ADDITIONAL_TEST_DATA = [
-    TestFixtureModel(some_string="turtle", some_number=3),
-    TestFixtureModel(some_string="quail", some_number=4),
+    DummyFixtureModel(some_string="turtle", some_number=3),
+    DummyFixtureModel(some_string="quail", some_number=4),
 ]
 
 
-def fixture_to_orm_model(entry: TestFixtureModel) -> TestModel:
-    """Converts a TestFixtureModel into an ORM model"""
-    return TestModel(some_string=entry.some_string, some_number=entry.some_number)
+def fixture_to_orm_model(entry: DummyFixtureModel) -> DummyModel:
+    """Converts a DummyFixtureModel into an ORM model"""
+    return DummyModel(some_string=entry.some_string, some_number=entry.some_number)
 
 
 def populate_db(db_url: str):
