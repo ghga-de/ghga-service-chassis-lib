@@ -101,7 +101,7 @@ class AsyncDaoGenericBase:
         ...
         return self
 
-    # pylint: disable=unused-argument,no-self-use
+    # pylint: disable=unused-argument
     async def _aexit__(self, err_type, err_value, err_traceback):
         """Teardown logic."""
         ...

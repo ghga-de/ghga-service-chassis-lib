@@ -31,8 +31,8 @@ from . import db_models
 
 
 # Since this is just a DAO stub without implementation,
-# following pylint error are expected:
-# pylint: disable=unused-argument,no-self-use
+# some linting errors are expected:
+# pylint: disable=unused-argument
 class DatabaseDao(AsyncDaoGenericBase):
     """
     A DAO base class for interacting with the database.
@@ -42,7 +42,7 @@ class DatabaseDao(AsyncDaoGenericBase):
         """add a todo item"""
         ...
 
-    async def get_all_todos(self) -> List[models.ToDoItem]:
+    async def get_all_todos(self) -> List[models.ToDoItem]:  # type: ignore[empty-body]
         """get all todo items"""
         ...
 

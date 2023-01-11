@@ -42,7 +42,7 @@ class PostgresqlConfigBase(BaseSettings):
         description="Print DB/ORM logs.",
     )
 
-    # pylint: disable=no-self-argument,no-self-use
+    # pylint: disable=no-self-argument
     @validator("db_url")
     def db_url_prefix(cls, value: str):
         """Checks if db_url is a valid postgres URL."""
