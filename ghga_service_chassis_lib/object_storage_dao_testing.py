@@ -35,6 +35,7 @@ from .object_storage_dao import (
 from .utils import TEST_FILE_PATHS
 
 MEBIBYTE = 1024 * 1024
+TIMEOUT = 30
 
 
 def calc_md5(content: bytes) -> str:
@@ -73,7 +74,11 @@ def upload_file(presigned_url: PresignedPostURL, file_path: Path, file_md5: str)
         files = {"file": (str(file_path), test_file)}
         headers = {"ContentMD5": file_md5}
         response = requests.post(
-            presigned_url.url, data=presigned_url.fields, files=files, headers=headers
+            presigned_url.url,
+            data=presigned_url.fields,
+            files=files,
+            headers=headers,
+            timeout=TIMEOUT,
         )
         response.raise_for_status()
 
@@ -108,7 +113,7 @@ def upload_part(
         object_id=object_id,
         part_number=part_number,
     )
-    response = requests.put(upload_url, data=content)
+    response = requests.put(upload_url, data=content, timeout=TIMEOUT)
     response.raise_for_status()
 
 
@@ -182,7 +187,7 @@ def multipart_upload_file(
 def download_and_check_test_file(presigned_url: str, expected_md5: str):
     """Downloads the test file from thespecified URL and checks its integrity (md5)."""
 
-    response = requests.get(presigned_url)
+    response = requests.get(presigned_url, timeout=TIMEOUT)
     response.raise_for_status()
 
     observed_md5 = calc_md5(response.content)
