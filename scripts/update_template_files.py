@@ -23,10 +23,11 @@ or verifies their existence or non-existence depending on the list they are in.
 import difflib
 import shutil
 import sys
+import urllib.error
 import urllib.parse
+import urllib.request
 from pathlib import Path
 
-import requests
 import typer
 from script_utils.cli import echo_failure, echo_success
 
@@ -70,14 +71,18 @@ def get_file_list(list_name: str) -> list[str]:
 def get_template_file_content(relative_file_path: str):
     """Get the content of the template file corresponding ot the given path."""
     remote_file_url = urllib.parse.urljoin(RAW_TEMPLATE_URL, relative_file_path)
-    remote_file_request = requests.get(remote_file_url)
-    if remote_file_request.status_code != 200:
+    remote_file_request = urllib.request.Request(remote_file_url)
+    try:
+        with urllib.request.urlopen(remote_file_request) as remote_file_response:
+            return remote_file_response.read().decode(
+                remote_file_response.headers.get_content_charset("utf-8")
+            )
+    except urllib.error.HTTPError as remote_file_error:
         print(
             f"  - WARNING: request to remote file {remote_file_url} returned"
-            f" status code {remote_file_request.status_code}"
+            f" status code {remote_file_error.code}"
         )
         return None
-    return remote_file_request.text
 
 
 def diff_content(local_file_path, local_file_content, template_file_content) -> bool:
