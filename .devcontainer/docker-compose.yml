@@ -80,12 +80,12 @@ services:
       # accessible at localhost
       HOSTNAME_EXTERNAL: localhost
       USE_SSL: "false"
-      DATA_DIR: /tmp/localstack/data
+      DATA_DIR: /var/lib/localstack/data
       DEBUG: 1
     volumes:
       - type: volume
         source: s3_fs
-        target: /tmp/localstack
+        target: /var/lib/localstack
         volume:
           nocopy: true
     # useful ports: 4566 - AWS API
