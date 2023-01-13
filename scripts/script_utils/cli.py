@@ -31,3 +31,6 @@ def echo_failure(message: str):
 
     styled_message = typer.style(text=message, fg=typer.colors.RED)
     typer.echo(styled_message)
+
+
+run = typer.run

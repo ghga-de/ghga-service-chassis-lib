@@ -28,8 +28,15 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-import typer
-from script_utils.cli import echo_failure, echo_success
+try:
+    from script_utils.cli import echo_failure, echo_success, run
+except ImportError:
+    echo_failure = echo_success = print  # type: ignore
+
+    def run(main_fn):
+        """Run main function without cli tools (typer)."""
+        main_fn(check="--check" in sys.argv[1:])
+
 
 REPO_ROOT_DIR = Path(__file__).parent.parent.resolve()
 
@@ -156,7 +163,7 @@ def remove_files(files: list[str], check: bool = False) -> bool:
     return ok
 
 
-def cli_main(check: bool = False):
+def main(check: bool = False):
     """Update the static files in the service template."""
     ok = True
     if not check:
@@ -191,10 +198,5 @@ def cli_main(check: bool = False):
     )
 
 
-def main():
-    """Main function that runs the CLI."""
-    typer.run(cli_main)
-
-
 if __name__ == "__main__":
-    main()
+    run(main)
