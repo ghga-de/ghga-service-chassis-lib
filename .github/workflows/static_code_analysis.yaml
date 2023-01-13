@@ -11,7 +11,7 @@ jobs:
       - name: Retrieve main src dir
         id: main_src_dir
         run: |
-          echo "::set-output name=MAIN_SRC_DIR::${PWD}/$(./scripts/get_package_name.py)"
+          echo "MAIN_SRC_DIR=${PWD}/$(./scripts/get_package_name.py)" >> $GITHUB_OUTPUT
       - name: Set up Python 3.9
         uses: actions/setup-python@v3.1.2
         with:

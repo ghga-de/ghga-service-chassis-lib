@@ -65,7 +65,11 @@ EXCLUDE = [
     ".pytest_cache",
     ".editorconfig",
     ".static_files",
+    ".static_files_ignore",
     ".mandatory_files",
+    ".mandatory_files_ignore",
+    ".deprecated_files",
+    ".deprecated_files_ignore",
 ]
 
 # exclude file by file ending from license header check:
