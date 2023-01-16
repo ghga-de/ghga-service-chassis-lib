@@ -158,7 +158,10 @@ def remove_files(files: list[str], check: bool = False) -> bool:
             if check:
                 print(f"  - {local_file_path}: deprecated, but exists")
             else:
-                shutil.rmtree(local_file_path)
+                if local_file_path.is_dir():
+                    shutil.rmtree(local_file_path)
+                else:
+                    local_file_path.unlink()
                 print(f"  - {local_file_path}: removed, since it is deprecated")
     return ok
 
