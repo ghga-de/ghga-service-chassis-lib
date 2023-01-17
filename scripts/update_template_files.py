@@ -128,7 +128,7 @@ def check_file(relative_file_path: str, diff: bool = False) -> bool:
             return True
 
         with open(local_file_path, "r", encoding="utf8") as file:
-            return not diff_content(local_file_path, file.read(), template_file_content)
+            return diff_content(local_file_path, file.read(), template_file_content)
 
     return False
 
