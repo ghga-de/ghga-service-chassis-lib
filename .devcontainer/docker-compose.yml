@@ -26,7 +26,7 @@ services:
     user: vscode
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.0.1
+    image: confluentinc/cp-zookeeper:7.3.1
     hostname: zookeeper
     container_name: zookeeper
     ports:
@@ -36,7 +36,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    image: confluentinc/cp-server:7.0.1
+    image: confluentinc/cp-server:7.3.1
     hostname: broker
     container_name: broker
     depends_on:
@@ -48,6 +48,11 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
     # useful ports: 29092
 
   rabbitmq:
@@ -57,7 +62,7 @@ services:
     # 15672 - dashboard
 
   mongo_db:
-    image: mongo:4.4.6
+    image: mongo:6.0.3
     restart: unless-stopped
     volumes:
       - mongodb-data:/data/db
@@ -67,7 +72,7 @@ services:
     # useful ports: 27017
 
   localstack:
-    image: localstack/localstack:0.11.4
+    image: localstack/localstack:1.3.1
     environment:
       SERVICES: s3
       DEFAULT_REGION: eu-west-1
@@ -75,12 +80,12 @@ services:
       # accessible at localhost
       HOSTNAME_EXTERNAL: localhost
       USE_SSL: "false"
-      DATA_DIR: /tmp/localstack/data
+      DATA_DIR: /var/lib/localstack/data
       DEBUG: 1
     volumes:
       - type: volume
         source: s3_fs
-        target: /tmp/localstack
+        target: /var/lib/localstack
         volume:
           nocopy: true
     # useful ports: 4566 - AWS API

@@ -12,23 +12,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-"""Definition of SQL ORM classes"""
+"""A collection of CLI utilities"""
 
-from sqlalchemy import Column, DateTime, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm.decl_api import DeclarativeMeta
-
-Base: DeclarativeMeta = declarative_base()
+import typer
 
 
-class ToDoItem(Base):
-    """
-    A ToDoItem
-    """
+def echo_success(message: str):
+    """Print a success message."""
 
-    __tablename__ = "todoitems"
-    id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False, unique=True)
-    description = Column(String, nullable=False)
-    due_date = Column(DateTime, nullable=False)
+    styled_message = typer.style(text=message, fg=typer.colors.GREEN)
+    typer.echo(styled_message)
+
+
+def echo_failure(message: str):
+    """Print a failure message."""
+
+    styled_message = typer.style(text=message, fg=typer.colors.RED)
+    typer.echo(styled_message)
+
+
+run = typer.run

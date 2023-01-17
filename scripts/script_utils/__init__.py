@@ -12,23 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-"""Definition of SQL ORM classes"""
-
-from sqlalchemy import Column, DateTime, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm.decl_api import DeclarativeMeta
-
-Base: DeclarativeMeta = declarative_base()
-
-
-class ToDoItem(Base):
-    """
-    A ToDoItem
-    """
-
-    __tablename__ = "todoitems"
-    id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False, unique=True)
-    description = Column(String, nullable=False)
-    due_date = Column(DateTime, nullable=False)
+"""A collection of utilities used by scripts."""

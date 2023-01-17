@@ -1,4 +1,4 @@
-# Copyright 2021 - 2022 Universität Tübingen, DKFZ and EMBL
+# Copyright 2021 - 2023 Universität Tübingen, DKFZ and EMBL
 # for the German Human Genome-Phenome Archive (GHGA)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ from ghga_service_chassis_lib.postgresql_testing import config_from_psql_contain
 from .fixtures.postgresql import (
     ADDITIONAL_TEST_DATA,
     PREPOPULATED_TEST_DATA,
-    TestModel,
+    DummyModel,
     fixture_to_orm_model,
     populate_db,
 )
@@ -47,7 +47,7 @@ def test_sync_connector_query():
 
         # query existing entries:
         with psql_connector.transactional_session() as session:
-            query = session.execute(select(TestModel).order_by(TestModel.some_number))
+            query = session.execute(select(DummyModel).order_by(DummyModel.some_number))
             first_entry = query.scalars().first()
             expected_first_entry = PREPOPULATED_TEST_DATA[0]
         assert first_entry.some_string == expected_first_entry.some_string
@@ -72,7 +72,7 @@ def test_sync_connector_commit():
         # query for the newly added entry:
         with psql_connector.transactional_session() as session:
             query = session.execute(
-                select(TestModel).where(TestModel.some_string == entry.some_string)
+                select(DummyModel).where(DummyModel.some_string == entry.some_string)
             )
             first_entry = query.scalars().first()
         assert first_entry.some_string == entry.some_string
@@ -91,7 +91,7 @@ async def test_async_connector_query():
         # query existing entries:
         async with psql_connector.transactional_session() as session:
             query = await session.execute(
-                select(TestModel).order_by(TestModel.some_number)
+                select(DummyModel).order_by(DummyModel.some_number)
             )
             first_entry = query.scalars().first()
             expected_first_entry = PREPOPULATED_TEST_DATA[0]
@@ -118,7 +118,7 @@ async def test_async_connector_commit():
         # query for the newly added entry:
         async with psql_connector.transactional_session() as session:
             query = await session.execute(
-                select(TestModel).where(TestModel.some_string == entry.some_string)
+                select(DummyModel).where(DummyModel.some_string == entry.some_string)
             )
             first_entry = query.scalars().first()
         assert first_entry.some_string == entry.some_string
