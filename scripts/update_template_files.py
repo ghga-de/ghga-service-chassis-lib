@@ -21,7 +21,9 @@ or verifies their existence or non-existence depending on the list they are in.
 """
 
 import difflib
+import os
 import shutil
+import stat
 import sys
 import urllib.error
 import urllib.parse
@@ -107,54 +109,94 @@ def diff_content(local_file_path, local_file_content, template_file_content) -> 
     return False
 
 
-def update_files(files: list[str], diff: bool = False, check: bool = False) -> bool:
-    """Update or check all the files in the given list"""
-    ok = True
+def check_file(relative_file_path: str, diff: bool = False) -> bool:
+    """Compare file at the given path with the given content.
+
+    Returns True if there are differences.
+    """
+    local_file_path = REPO_ROOT_DIR / Path(relative_file_path)
+
+    if not local_file_path.exists():
+        print(f"  - {local_file_path} does not exist")
+        return True
+
+    if diff:
+        template_file_content = get_template_file_content(relative_file_path)
+
+        if template_file_content is None:
+            print(f"  - {local_file_path}: cannot check, remote is missing")
+            return True
+
+        with open(local_file_path, "r", encoding="utf8") as file:
+            return not diff_content(local_file_path, file.read(), template_file_content)
+
+    return False
+
+
+def update_file(relative_file_path: str, diff: bool = False) -> bool:
+    """Update file at the given relative path.
+
+    Returns True if there are updaes.
+    """
+
+    local_file_path = REPO_ROOT_DIR / Path(relative_file_path)
+    local_parent_dir = local_file_path.parent
+
+    if not local_parent_dir.exists():
+        local_parent_dir.mkdir(parents=True)
+
+    if diff or not local_file_path.exists():
+        template_file_content = get_template_file_content(relative_file_path)
+
+        if template_file_content is None:
+            print(f"  - {local_file_path}: cannot update, remote is missing")
+            return True
+
+        if diff and local_file_path.exists():
+            with open(local_file_path, "r", encoding="utf8") as file:
+                if file.read() == template_file_content:
+                    return False
+
+        executable = template_file_content.startswith("#!")
+        executable_flags = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        with open(local_file_path, "w", encoding="utf8") as file:
+            file.write(template_file_content)
+            mode = os.fstat(file.fileno()).st_mode
+            if executable:
+                mode |= executable_flags
+            else:
+                mode &= ~executable_flags
+            os.fchmod(file.fileno(), stat.S_IMODE(mode))
+
+        print(f"  - {local_file_path}: updated")
+        return True
+
+    return False
+
+
+def update_files(files: list[str], check: bool = False, diff: bool = False) -> bool:
+    """Update or check all the files in the given list.
+
+    Returns True if there are updates.
+    """
+    updates = False
+    update_or_check_file = check_file if check else update_file
     for relative_file_path in files:
-
-        local_file_path = REPO_ROOT_DIR / Path(relative_file_path)
-        local_parent_dir = local_file_path.parent
-        if check:
-            if not local_file_path.exists():
-                print(f"  - {local_file_path} does not exist")
-                ok = False
-            elif diff:
-                template_file_content = get_template_file_content(relative_file_path)
-                if template_file_content is None:
-                    print(f"  - {local_file_path}: cannot check, remote is missing")
-                    ok = False
-                else:
-                    with open(local_file_path, "r", encoding="utf8") as local_file:
-                        local_file_content = local_file.read()
-                        if diff_content(
-                            local_file_path, local_file_content, template_file_content
-                        ):
-                            ok = False
-        else:
-            if not local_parent_dir.exists():
-                local_parent_dir.mkdir(parents=True)
-            if diff or not local_file_path.exists():
-                ok = False
-                template_file_content = get_template_file_content(relative_file_path)
-                if template_file_content is None:
-                    print(f"  - {local_file_path}: cannot update, remote is missing")
-
-                else:
-                    with open(local_file_path, "w", encoding="utf8") as local_file:
-                        local_file.write(template_file_content)
-                    print(f"  - {local_file_path}: updated")
-
-    return ok
+        if update_or_check_file(relative_file_path, diff=diff):
+            updates = True
+    return updates
 
 
 def remove_files(files: list[str], check: bool = False) -> bool:
-    """Remove or check all the files in the given list"""
-    ok = True
+    """Remove or check all the files in the given list.
+
+    Returns True if there are updates.
+    """
+    updates = False
     for relative_file_path in files:
         local_file_path = REPO_ROOT_DIR / Path(relative_file_path)
 
         if local_file_path.exists():
-            ok = False
             if check:
                 print(f"  - {local_file_path}: deprecated, but exists")
             else:
@@ -163,42 +205,45 @@ def remove_files(files: list[str], check: bool = False) -> bool:
                 else:
                     local_file_path.unlink()
                 print(f"  - {local_file_path}: removed, since it is deprecated")
-    return ok
+            updates = True
+    return updates
 
 
 def main(check: bool = False):
     """Update the static files in the service template."""
-    ok = True
+    updated = False
     if not check:
-        update_files([STATIC_FILES], check=False)
+        update_files([STATIC_FILES], diff=True, check=False)
 
     print("Static files...")
     files_to_update = get_file_list(STATIC_FILES)
     if check:
         files_to_update.append(STATIC_FILES)
     files_to_update.extend((MANDATORY_FILES, DEPRECATED_FILES))
-    if not update_files(files_to_update, diff=True, check=check):
-        ok = False
+    if update_files(files_to_update, diff=True, check=check):
+        updated = True
 
     print("Mandatory files...")
     files_to_guarantee = get_file_list(MANDATORY_FILES)
-    if not update_files(files_to_guarantee, check=check):
-        ok = False
+    if update_files(files_to_guarantee, check=check):
+        updated = True
 
     print("Deprecated files...")
     files_to_remove = get_file_list(DEPRECATED_FILES)
-    if not remove_files(files_to_remove, check=check):
-        ok = False
+    if remove_files(files_to_remove, check=check):
+        updated = True
 
-    if not ok:
-        echo_failure("Validating the template files failed.")
-        sys.exit(1)
-
-    echo_success(
-        "Successfully validated the template files."
-        if check
-        else "Successfully updated the template files."
-    )
+    if check:
+        if updated:
+            echo_failure("Validating files from template failed.")
+            sys.exit(1)
+        echo_success("Successfully validated files from template.")
+    else:
+        echo_success(
+            "Successfully updated files from template."
+            if updated
+            else "No updates from the template were necessary."
+        )
 
 
 if __name__ == "__main__":
