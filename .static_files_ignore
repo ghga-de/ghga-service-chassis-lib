@@ -4,3 +4,5 @@
 scripts/update_config_docs.py
 
 .github/workflows/check_config_docs.yaml
+
+.devcontainer/Dockerfile
