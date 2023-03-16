@@ -27,7 +27,6 @@ DB_NAME = "example"
 
 
 async def main():
-
     """Small example of how to connect to a mongodb database"""
     db_connect = DBConnect(DB_URL, DB_NAME)
     collection = await db_connect.get_collection("example_collection")

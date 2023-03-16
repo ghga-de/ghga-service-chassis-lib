@@ -1,0 +1,5 @@
+# requirements for development and testing this service
+# Note: All requirements for this chassis lib are in the setup.cfg (legacy reasons)
+# -r requirements-dev-common.txt
+
+# additional requirements can be listed here

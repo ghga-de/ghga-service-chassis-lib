@@ -24,6 +24,7 @@ from ghga_service_chassis_lib.postgresql import PostgresqlConfigBase
 # a config yaml.
 DB_URL = "postgresql://postgres:postgres@postgresql/todo"
 
+
 # You may inherit from multiple config base classes:
 @config_from_yaml(prefix="my_postgres_demo")
 class Config(ApiConfigBase, PostgresqlConfigBase):
