@@ -1,6 +1,5 @@
 # requirements for development and testing this service
-# All requirements are in the setup.cfg
+# Note: All requirements for this chassis lib are in the setup.cfg (legacy reasons)
 # -r requirements-dev-common.txt
 
 # additional requirements can be listed here
-testcontainers[kafka,mongo]==3.4.1
