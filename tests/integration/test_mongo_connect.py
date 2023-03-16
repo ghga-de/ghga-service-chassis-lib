@@ -24,7 +24,6 @@ from ghga_service_chassis_lib.mongo_connect import DBConnect
 
 @pytest.mark.asyncio
 async def test_get_collection():
-
     """
     Test, if we can establish a connection and insert data to the database
     """
