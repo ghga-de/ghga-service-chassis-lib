@@ -11,7 +11,6 @@
 .devcontainer/Dockerfile
 
 .github/workflows/dev_cd.yaml
-.github/workflows/unit_and_int_tests.yaml
 
 docs/README.md
 

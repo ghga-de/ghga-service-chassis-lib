@@ -1,7 +1,7 @@
 version: "3"
 
 services:
-  ghga_service_chassis_lib:
+  app:
     build:
       context: .
       dockerfile: ./Dockerfile
