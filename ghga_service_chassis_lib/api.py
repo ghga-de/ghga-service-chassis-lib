@@ -23,11 +23,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from httpyexpect.server.handlers.fastapi_ import configure_exception_handler
 from pydantic import BaseSettings, Field
+from pydantic.dataclasses import dataclass
 
 # type alias for log level parameter
 LogLevel = Literal["critical", "error", "warning", "info", "debug", "trace"]
 
-
+@dataclass
 class ApiConfigBase(BaseSettings):
     """A base class with API-required config params.
     Inherit your config class from this class if you need
