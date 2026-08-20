@@ -4,6 +4,9 @@
 [![Coverage Status](https://coveralls.io/repos/github/ghga-de/ghga_service_chassis_lib/badge.svg?branch=main)](https://coveralls.io/github/ghga-de/ghga_service_chassis_lib?branch=main)
 
 # ghga-service-chassis-lib
+
+> **⚠️ Note:** This repository has been archived and is no longer receiving updates, as it has been superseded by **ghga-service-commons**.
+
 This python library serves as chassis for the microservices developed at
 German Human Genome-Phenome Archive (GHGA).
 
